@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Luồng Gió — bản đồ dự báo thời tiết thời gian thực cho Việt Nam và toàn châu Á: nhiệt độ, gió, mưa, áp suất, mây, chất lượng không khí.">
+<meta name="theme-color" content="#060d17">
+<title>Luồng Gió — Dự báo thời tiết Việt Nam &amp; châu Á</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23060d17'/%3E%3Cpath d='M4 10c2-3 4-3 6 0s4 3 6 0 3-2 4-1' stroke='%2337e0ff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M4 15c2-3 4-3 6 0s4 3 6 0 3-2 4-1' stroke='%2337e0ff' stroke-width='1.5' fill='none' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <div id="map-wrap">
+    <div id="map" aria-label="Bản đồ thời tiết châu Á"></div>
+  </div>
+
+  <div id="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none"><path d="M3 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0" stroke="#37e0ff" stroke-width="2" stroke-linecap="round"/><path d="M3 17c2-3 4-3 6 0s4 3 6 0 4-3 6 0" stroke="#37e0ff" stroke-width="1.4" stroke-linecap="round" opacity=".5"/></svg>
+      <div class="name">Luồng<span>Gió</span></div>
+    </div>
+    <div id="search-wrap" role="combobox" aria-haspopup="listbox" aria-owns="search-results">
+      <svg id="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7d93ab" stroke-width="2"/><path d="M21 21l-4-4" stroke="#7d93ab" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search" type="search" placeholder="Tìm thành phố, địa danh ở Việt Nam &amp; châu Á…" autocomplete="off" aria-label="Tìm địa điểm" aria-autocomplete="list">
+      <div id="search-results" role="listbox"></div>
+    </div>
+    <div id="unit-toggle" role="group" aria-label="Đơn vị nhiệt độ">
+      <button class="active" data-unit="C">°C</button>
+      <button data-unit="F">°F</button>
+    </div>
+  </div>
+
+  <div id="rail">
+    <div class="rail-group" role="group" aria-label="Lớp bản đồ">
+      <button class="layer-btn active" data-layer="wind" title="Gió">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 16h15a3 3 0 1 1-3 3"/><path d="M3 12h8"/></svg>
+        <span>GIÓ</span>
+      </button>
+      <button class="layer-btn" data-layer="temp" title="Nhiệt độ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a2 2 0 0 0-2 2v9.5a4 4 0 1 0 4 0V5a2 2 0 0 0-2-2z"/></svg>
+        <span>NHIỆT</span>
+      </button>
+      <button class="layer-btn" data-layer="rain" title="Lượng mưa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 16v2M12 16v3M16 16v2"/><path d="M7 13a5 5 0 1 1 9.6-2h.4a3.5 3.5 0 0 1 0 7H8a3.5 3.5 0 0 1-1-6.86"/></svg>
+        <span>MƯA</span>
+      </button>
+      <button class="layer-btn" data-layer="cloud" title="Mây che phủ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 18a5 5 0 1 1 1.6-9.74A6 6 0 0 1 20 11a3.5 3.5 0 0 1-1 7z"/></svg>
+        <span>MÂY</span>
+      </button>
+      <button class="layer-btn" data-layer="pressure" title="Áp suất">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+        <span>ÁP</span>
+      </button>
+      <button class="layer-btn more" id="btn-more" title="Thêm lớp: gió giật, cảm giác, điểm sương, độ ẩm, dông, sóng biển, PM2.5" aria-haspopup="true" aria-expanded="false" aria-controls="layer-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+        <span>THÊM</span>
+      </button>
+    </div>
+    <div class="rail-sep"></div>
+    <div class="rail-group tools">
+      <button class="tool-btn" id="btn-radar" title="Radar mưa trực tiếp (phím R)" aria-label="Radar mưa trực tiếp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 12l6-6"/><path d="M19.1 7.1A9 9 0 1 1 12 3"/><path d="M15.5 9.2A4.5 4.5 0 1 1 12 7.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="tool-btn" id="btn-settings" title="Cài đặt bản đồ" aria-label="Cài đặt bản đồ" aria-haspopup="true" aria-expanded="false" aria-controls="settings-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+      <button class="tool-btn" id="btn-locate" title="Vị trí của tôi" aria-label="Vị trí của tôi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button class="tool-btn txt" id="btn-vn" title="Xem toàn Việt Nam" aria-label="Xem toàn Việt Nam">VN</button>
+      <button class="tool-btn" id="btn-asia" title="Xem toàn châu Á" aria-label="Xem toàn châu Á">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+      </button>
+      <button class="tool-btn" id="btn-zoom-in" title="Phóng to" aria-label="Phóng to">+</button>
+      <button class="tool-btn" id="btn-zoom-out" title="Thu nhỏ" aria-label="Thu nhỏ">−</button>
+    </div>
+  </div>
+
+  <div class="popover" id="layer-menu" hidden role="menu" aria-label="Chọn lớp bản đồ"></div>
+  <div class="popover" id="settings-menu" hidden aria-label="Cài đặt bản đồ"></div>
+
+  <div id="legend">
+    <div class="legend-head">
+      <span class="legend-title" id="legend-title">Gió</span>
+      <span class="legend-unit" id="legend-unit"></span>
+    </div>
+    <div class="bar" id="legend-bar"></div>
+    <div class="ticks" id="legend-ticks"></div>
+  </div>
+
+  <div id="radar-badge" hidden title="Radar từ RainViewer — chỉ có ở nơi có trạm radar">
+    <span class="rb-dot"></span><span class="rb-text"></span>
+  </div>
+
+  <div id="picker" hidden aria-hidden="true"></div>
+
+  <aside id="panel" class="closed" aria-live="polite">
+    <div class="panel-actions">
+      <button class="panel-btn" id="panel-share" title="Chia sẻ / sao chép liên kết" aria-label="Chia sẻ">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      </button>
+      <button class="panel-btn fav" id="panel-fav" title="Lưu vào yêu thích" aria-label="Yêu thích">☆</button>
+      <button class="panel-btn" id="panel-close" aria-label="Đóng">✕</button>
+    </div>
+    <div id="panel-scroll">
+      <div class="loc-name" id="loc-name">—</div>
+      <div class="loc-region" id="loc-region">—</div>
+      <div class="loc-meta" id="loc-meta"></div>
+
+      <div class="when" id="when">—</div>
+      <div class="now-row">
+        <div class="now-icon" id="now-icon"></div>
+        <div class="now-temp" id="now-temp">--</div>
+        <div class="now-side">
+          <div class="now-cond" id="now-cond">—</div>
+          <div class="now-feels" id="now-feels">—</div>
+          <div class="now-hilo" id="now-hilo"></div>
+        </div>
+      </div>
+
+      <div id="alerts"></div>
+
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <div class="extra-grid">
+        <div class="stat-card aqi" id="aqi-card"></div>
+        <div class="stat-card sun" id="sun-card"></div>
+      </div>
+
+      <div class="section-title" id="hourly-title">Theo giờ · 5 ngày tới</div>
+      <div id="hourly-strip"></div>
+      <div id="chart-wrap">
+        <svg id="chart" viewBox="0 0 300 90" preserveAspectRatio="none" width="100%" height="90"></svg>
+        <div class="chart-legend"><span class="t">— Nhiệt độ</span><span class="r">▮ Lượng mưa</span></div>
+      </div>
+
+      <div class="section-title">10 ngày tới</div>
+      <div id="daily-list"></div>
+
+      <div class="section-title">So sánh mô hình dự báo</div>
+      <div id="models"></div>
+
+      <div class="source" id="source"></div>
+    </div>
+  </aside>
+
+  <div id="timeline">
+    <button id="play-btn" title="Phát/Tạm dừng" aria-label="Phát/Tạm dừng">
+      <svg id="play-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div id="timeline-track-wrap">
+      <div id="timeline-scale">
+        <svg id="tl-curve" viewBox="0 0 1000 38" preserveAspectRatio="none"><path id="tl-curve-path" fill="none" stroke="#37e0ff" stroke-width="1.6" opacity=".55" vector-effect="non-scaling-stroke"/></svg>
+        <div id="tl-ticks"></div>
+        <div id="playhead" role="slider" tabindex="0" aria-label="Giờ dự báo" aria-valuemin="0" aria-valuemax="119" aria-valuenow="0"><div class="now-badge" id="playhead-badge">--:--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" role="status"></div>
+  <div id="hint">Bấm vào bất kỳ đâu trên bản đồ để xem dự báo tại điểm đó</div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
