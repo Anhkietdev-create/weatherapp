@@ -4,6 +4,7 @@ const router = express.Router();
 const locations = require("../data/locations");
 const meteo = require("../services/openMeteo");
 const stormsSvc = require("../services/storms");
+const reverseSvc = require("../services/reverse");
 
 // Khung bao châu Á (kể cả Indonesia, Đông Timor, Tây Á và vùng Siberia/Viễn Đông)
 const BOUNDS = { minLat: -15, maxLat: 82, minLon: 25, maxLon: 180 };
@@ -147,6 +148,18 @@ router.get("/forecast", wrap(async (req, res) => {
     tier: 3,
   };
   res.json(await meteo.getWeather(location));
+}));
+
+/** GET /api/reverse?lat=..&lon=.. — tên địa danh tại toạ độ (cho vị trí GPS của người dùng) */
+router.get("/reverse", wrap(async (req, res) => {
+  const p = parseLatLon(req, res);
+  if (!p) return;
+  try {
+    res.json((await reverseSvc.reverse(p.lat, p.lon)) || { name: null });
+  } catch (err) {
+    console.warn("Reverse geocoding lỗi:", err.message);
+    res.json({ name: null }); // không có tên thì frontend dùng tên tự đặt theo địa điểm gần nhất
+  }
 }));
 
 /** GET /api/storms?days=30 — bão/áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á (GDACS) */

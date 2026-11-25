@@ -134,6 +134,11 @@ const SETTINGS_SPEC = [
     options: Object.entries(ACC_PERIODS).map(([v, l]) => [v, l.replace(" tới", "")]),
     hint: "Áp dụng cho lớp ☔ Mưa tích luỹ (menu Thêm)",
   },
+  {
+    key: "autoLocate", label: "Mở trang tại vị trí của tôi",
+    options: [[true, "Bật"], [false, "Tắt"]],
+    hint: "Tự xác định vị trí khi mở trang (nếu trình duyệt đã cho phép)",
+  },
   { key: "windUnit", label: "Đơn vị gió", options: Object.entries(WIND_UNITS).map(([v, u]) => [v, u.label]) },
 ];
 

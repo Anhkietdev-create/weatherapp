@@ -40,6 +40,12 @@ export function fetchModels(lat, lon) {
   return get(`/models?${qs}`);
 }
 
+/** Tên địa danh tại toạ độ (phường/xã, tỉnh) — cho vị trí GPS của người dùng */
+export function reverse(lat, lon) {
+  const qs = new URLSearchParams({ lat: lat.toFixed(5), lon: lon.toFixed(5) });
+  return get(`/reverse?${qs}`);
+}
+
 /** Bão / áp thấp nhiệt đới đang hoạt động & trong `days` ngày qua ở châu Á */
 export const fetchStorms = (days = 30) => get(`/storms?days=${days}`);
 

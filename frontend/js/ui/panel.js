@@ -102,6 +102,8 @@ export function renderPanel(weather) {
   $("now-feels").textContent = `Cảm giác như ${fmtTemp(h.feels)}`;
   $("now-hilo").innerHTML = `Cao <b>${fmtDeg(day.hi)}</b> · Thấp <b>${fmtDeg(day.lo)}</b>`;
 
+  renderGpsBadge(loc);
+  renderNowcast(weather);
   renderAlerts(weather);
 
   // ---- Các chỉ số ----
@@ -146,6 +148,51 @@ export function renderPanel(weather) {
   $("source").innerHTML =
     `Nguồn dữ liệu: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · ` +
     `Cập nhật ${String(upd.getHours()).padStart(2, "0")}:${String(upd.getMinutes()).padStart(2, "0")}`;
+}
+
+// ----------------------------- Vị trí GPS & mưa 2 giờ tới --------------------
+function renderGpsBadge(loc) {
+  const el = $("gps-badge");
+  if (!loc.gps) { el.hidden = true; return; }
+  const acc = loc.gps.accuracy;
+  const accText = acc >= 1000 ? `±${(acc / 1000).toFixed(1)} km (gần đúng)` : `±${acc} m`;
+  el.hidden = false;
+  el.innerHTML = `<span class="gb-dot"></span>Vị trí hiện tại của bạn · sai số ${accText}` +
+    (loc.gps.watching ? ` · <span class="gb-live">đang theo dõi</span>` : "");
+}
+
+/** Dự báo mưa ngắn hạn: 8 bước × 15 phút (luôn tính từ BÂY GIỜ, không theo timeline) */
+function renderNowcast(weather) {
+  const el = $("nowcast");
+  const N = weather.nowcast || [];
+  if (N.length < 2) { el.hidden = true; return; }
+  el.hidden = false;
+  const rain = N.map((n) => n.rain || 0);
+  const wet = (v) => v >= 0.1;
+  const total = Math.round(rain.reduce((a, b) => a + b, 0) * 10) / 10;
+  let icon, text;
+  if (!rain.some(wet)) {
+    icon = "🌤"; text = "Không mưa trong 2 giờ tới";
+  } else if (wet(rain[0])) {
+    const stop = rain.findIndex((v) => !wet(v));
+    icon = "🌧";
+    text = stop < 0 ? "Đang mưa, kéo dài ít nhất 2 giờ tới" : `Đang mưa, có thể tạnh khoảng ${fmtClock(N[stop].time)}`;
+  } else {
+    icon = "🌦"; text = `Mưa có thể bắt đầu khoảng ${fmtClock(N[rain.findIndex(wet)].time)}`;
+  }
+  const level = total >= 10 ? "to" : total >= 2.5 ? "vừa" : "nhỏ";
+  const max = Math.max(1, ...rain);
+  const bars = N.map((n, i) => {
+    const h = rain[i] > 0 ? Math.max(8, (rain[i] / max) * 100) : 3;
+    return `<i style="height:${h}%" class="${wet(rain[i]) ? "wet" : ""}" title="${fmtClock(n.time)} · ${rain[i]} mm"></i>`;
+  }).join("");
+  el.innerHTML = `
+    <div class="nc-head"><span class="nc-ic">${icon}</span>
+      <div><b>${text}</b><small>${total > 0 ? `Tổng ~${total} mm · mưa ${level}` : `Dự báo 15 phút/lần · ${fmtClock(N[0].time)}–${fmtClock(N[N.length - 1].time)}`}</small></div></div>` +
+    // Không mưa thì bỏ biểu đồ cột trống cho thẻ gọn
+    (total > 0 ? `
+    <div class="nc-bars">${bars}</div>
+    <div class="nc-axis"><span>${fmtClock(N[0].time)}</span><span>+1 giờ</span><span>${fmtClock(N[N.length - 1].time)}</span></div>` : "");
 }
 
 // ----------------------------- Diễn giải chỉ số ------------------------------

@@ -15,8 +15,17 @@ so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
 - 34 tỉnh/thành theo đơn vị hành chính mới (từ 01/07/2025) và khoảng 40 đô thị,
   điểm du lịch, huyện đảo (Sa Pa, Phú Quốc, Côn Đảo, Lý Sơn, Hoàng Sa, Trường Sa…).
   Các địa điểm phụ hiện khi phóng to bản đồ.
-- **Xem dự báo ở bất kỳ đâu:** bấm thẳng lên bản đồ, tìm mọi địa danh trong Việt Nam
-  (tìm được cả khi gõ không dấu, ví dụ "da lat"), hoặc dùng nút **định vị** (GPS).
+- **Xem dự báo ở bất kỳ đâu:** bấm thẳng lên bản đồ, hoặc tìm mọi địa danh trong Việt Nam
+  (tìm được cả khi gõ không dấu, ví dụ "da lat").
+- **Dự báo tại vị trí thực của bạn** (nút định vị, link `#me`):
+  - lấy vị trí GPS/Wi-Fi của thiết bị, hiện chấm xanh + vòng sai số trên bản đồ;
+  - tên địa danh thật tới phường/xã (OpenStreetMap Nominatim), ví dụ "Phường Hải Châu · Đà Nẵng";
+  - **theo dõi khi di chuyển**: đi xa hơn 2 km thì tự cập nhật dự báo (bấm lại nút để tắt);
+  - lần đầu mở trang sẽ hỏi có dùng vị trí không; đồng ý thì những lần sau tự mở tại
+    vị trí của bạn (bật/tắt trong Cài đặt). Vị trí không được lưu trên máy chủ.
+  - Lưu ý: trình duyệt chỉ cho định vị trên **HTTPS** hoặc **http://localhost**.
+- **Mưa 2 giờ tới** (bước 15 phút): "Không mưa", "Mưa có thể bắt đầu khoảng 17:30",
+  "Đang mưa, có thể tạnh khoảng 18:15"… cho mọi địa điểm.
 - **13 lớp bản đồ** (5 lớp chính trên thanh bên trái, các lớp còn lại trong menu
   **Thêm**): Gió, Gió giật, Nhiệt độ, Cảm giác như, Điểm sương, Độ ẩm, Mưa, Mây,
   Dông (CAPE), Áp suất, **Mưa tích luỹ** (24 giờ / 3 ngày / 5 ngày tới), **Sóng biển** (hạt chạy theo hướng truyền sóng) và
@@ -74,6 +83,7 @@ weather-app/
 │   ├── routes/weather.js      # Các endpoint /api/...
 │   ├── services/openMeteo.js  # Gọi Open-Meteo, chuẩn hoá dữ liệu, cache
 │   ├── services/storms.js     # Bão từ GDACS: quỹ đạo, dự báo, nón sai số
+│   ├── services/reverse.js    # Toạ độ → tên phường/xã (Nominatim, ≤1 request/giây)
 │   ├── utils/wmo.js           # Mã thời tiết WMO → mô tả tiếng Việt + icon
 │   ├── server.js              # Express: API + frontend tĩnh + tải trước dữ liệu
 │   └── package.json
@@ -91,6 +101,7 @@ weather-app/
             ├── fieldLayer.js  # Lớp màu (IDW) + đường đẳng trị + hạt chuyển động + picker
             ├── radar.js       # Radar mưa trực tiếp (RainViewer)
             ├── storms.js      # Lớp bão: quỹ đạo, nón dự báo, danh sách
+            ├── geolocate.js   # Vị trí thực: GPS, chấm xanh, theo dõi khi di chuyển
             ├── panel.js       # Panel chi tiết
             ├── timeline.js    # Timeline 5 ngày
             ├── search.js      # Tìm kiếm địa điểm
@@ -109,6 +120,7 @@ weather-app/
 | GET    | `/api/weather/:id`                    | Dự báo đầy đủ: 5 ngày theo giờ, 10 ngày, AQI                  |
 | GET    | `/api/weather/:id/hourly` · `/daily`  | Chỉ phần theo giờ / theo ngày                                |
 | GET    | `/api/forecast?lat=..&lon=..`         | Dự báo đầy đủ tại một toạ độ bất kỳ trong khu vực châu Á      |
+| GET    | `/api/reverse?lat=..&lon=..`          | Tên địa danh tại toạ độ (phường/xã, tỉnh) — Nominatim          |
 | GET    | `/api/storms?days=30`                 | Bão/áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á       |
 | GET    | `/api/models?lat=..&lon=..`           | So sánh dự báo 7 ngày của ECMWF, GFS, ICON, JMA              |
 
@@ -116,6 +128,7 @@ weather-app/
 
 - Thời tiết, chất lượng không khí, địa danh: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
 - Sóng biển: Open-Meteo Marine · Bụi mịn: Open-Meteo Air Quality (mô hình CAMS).
+- Tên địa danh theo vị trí: [OpenStreetMap Nominatim](https://nominatim.org/) (© OpenStreetMap, ODbL).
 - Bão: [GDACS](https://www.gdacs.org/) (dữ liệu JTWC).
 - Radar: [RainViewer](https://www.rainviewer.com/) (chỉ có ở nơi có trạm radar).
 - Nền bản đồ & nhãn: Esri (World Dark Gray, World Terrain, World Imagery).

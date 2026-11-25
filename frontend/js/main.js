@@ -10,6 +10,7 @@ import {
   updatePinLabels,
   highlightActive,
   setCustomMarker,
+  removeCustomMarker,
   updateCustomMarkerName,
   focusOn,
   fitVietnam,
@@ -23,6 +24,18 @@ import {
 import { initField } from "./ui/fieldLayer.js";
 import { initRadar, setRadar, refreshRadar } from "./ui/radar.js";
 import { initStorms, setStorms, toggleStorms } from "./ui/storms.js";
+import {
+  initGeolocate,
+  getPosition,
+  permissionState,
+  geoSupported,
+  geoErrorMessage,
+  showUserMarker,
+  markReported,
+  startWatch,
+  stopWatch,
+  isWatching,
+} from "./ui/geolocate.js";
 import { initSearch } from "./ui/search.js";
 import {
   renderPanel,
@@ -222,6 +235,9 @@ function onSettingChange(key) {
     case "particles":
       field?.setParticles(state.particles);
       break;
+    case "autoLocate":
+      if (state.autoLocate) hideGeoBanner();
+      break;
     case "windUnit":
       updatePinLabels();
       if (state.weather) renderPanel(state.weather);
@@ -306,6 +322,7 @@ function selectPoint(lat, lon, { name = "", sub = "", zoom = 0 } = {}) {
 function reloadActive() {
   const a = state.active;
   if (!a) return;
+  if (a.gps) return selectMyLocation(a.gps, { fly: false, silent: true });
   if (a.id)
     return loadWeather(() => api.fetchWeather(a.id), a.name, { silent: true });
   return loadWeather(() => api.fetchForecastAt(a.lat, a.lon, a.name, a.sub), a.name, {
@@ -313,29 +330,113 @@ function reloadActive() {
   });
 }
 
-function locateMe() {
-  if (!navigator.geolocation) {
-    return showToast("Trình duyệt không hỗ trợ định vị.", {
-      error: true,
-      duration: 4000,
-    });
+// ---------------------------------------------------------------------------
+// Vị trí thực của người dùng (GPS / Wi-Fi của thiết bị)
+// ---------------------------------------------------------------------------
+const locateBtn = () => document.getElementById("btn-locate");
+
+/** Tải dự báo tại vị trí GPS, kèm tên địa danh thật (phường/xã, tỉnh/thành) */
+function selectMyLocation(pos, { fly = true, silent = false } = {}) {
+  showUserMarker(pos);
+  markReported(pos);
+  removeCustomMarker();
+  highlightActive(null);
+  state.active = { id: null, lat: pos.lat, lon: pos.lon, name: "Vị trí của bạn", gps: pos };
+  setHash("me");
+  if (fly) focusOn(pos.lat, pos.lon, 10);
+  return loadWeather(async () => {
+    const [w, place] = await Promise.all([
+      api.fetchForecastAt(pos.lat, pos.lon),
+      api.reverse(pos.lat, pos.lon).catch(() => null),
+    ]);
+    if (place?.name) {
+      w.location.name = place.name;
+      const detail = [place.road && place.road !== place.name ? place.road : null, place.province];
+      w.location.province = detail.filter(Boolean).join(" · ") || w.location.province;
+      if (place.country) w.location.country = place.country;
+    }
+    w.location.gps = { accuracy: pos.accuracy, at: pos.at, watching: isWatching() };
+    if (state.active?.gps === pos) state.active.name = w.location.name;
+    return w;
+  }, "vị trí của bạn", { silent });
+}
+
+/** Người dùng di chuyển xa → cập nhật dự báo nếu đang xem vị trí của mình */
+function onMoved(pos) {
+  if (state.active?.gps) {
+    selectMyLocation(pos, { fly: false, silent: true });
+    showToast("Bạn đã di chuyển — đã cập nhật dự báo tại vị trí mới", { duration: 3000 });
+  } else {
+    markReported(pos);
   }
-  showToast("Đang xác định vị trí của bạn…");
-  navigator.geolocation.getCurrentPosition(
-    (pos) =>
-      selectPoint(pos.coords.latitude, pos.coords.longitude, {
-        name: "Vị trí của bạn",
-        zoom: 10,
-      }),
-    (err) =>
-      showToast(
-        err.code === 1
-          ? "Bạn đã từ chối quyền truy cập vị trí."
-          : "Không xác định được vị trí.",
-        { error: true, duration: 4000 },
-      ),
-    { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
-  );
+}
+
+function setFollowing(on) {
+  if (on) {
+    startWatch(onMoved, (err) => {
+      if (err.code === 1) setFollowing(false);
+    });
+  } else {
+    stopWatch();
+  }
+  locateBtn().classList.toggle("active", isWatching());
+  locateBtn().title = isWatching()
+    ? "Đang theo dõi vị trí của bạn — bấm để tắt"
+    : "Dự báo tại vị trí của tôi";
+  if (state.weather?.location.gps) {
+    state.weather.location.gps.watching = isWatching();
+    renderPanel(state.weather);
+  }
+}
+
+/**
+ * Xác định vị trí rồi mở dự báo tại đó + bật theo dõi khi di chuyển.
+ * @returns {Promise<boolean>} thành công hay không
+ */
+async function locateMe({ silent = false, fly = true } = {}) {
+  hideGeoBanner();
+  if (!geoSupported()) {
+    if (!silent) showToast("Trình duyệt không hỗ trợ định vị.", { error: true, duration: 4000 });
+    return false;
+  }
+  if (!silent) showToast("Đang xác định vị trí của bạn…");
+  try {
+    const pos = await getPosition();
+    await selectMyLocation(pos, { fly });
+    setFollowing(true);
+    return true;
+  } catch (err) {
+    console.warn("Định vị lỗi:", err.message || err.code);
+    if (!silent) showToast(geoErrorMessage(err), { error: true, duration: 6000 });
+    else hideToast();
+    return false;
+  }
+}
+
+/** Nút định vị: lần đầu → lấy vị trí; đang xem vị trí mình & đang theo dõi → tắt theo dõi */
+function onLocateClick() {
+  if (isWatching() && state.active?.gps) {
+    setFollowing(false);
+    showToast("Đã tắt theo dõi vị trí", { duration: 2000 });
+  } else {
+    locateMe();
+  }
+}
+
+// Thanh hỏi quyền vị trí (chỉ hiện khi người dùng chưa từng chọn)
+const geoBanner = () => document.getElementById("geo-banner");
+function showGeoBanner() { geoBanner().hidden = false; }
+function hideGeoBanner() { geoBanner().hidden = true; }
+
+function initGeoBanner() {
+  geoBanner().addEventListener("click", (e) => {
+    const b = e.target.closest("[data-geo]");
+    if (!b) return;
+    state.autoLocate = b.dataset.geo === "yes";
+    saveSettings();
+    hideGeoBanner();
+    if (state.autoLocate) locateMe();
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -374,14 +475,29 @@ async function periodicRefresh() {
 // ---------------------------------------------------------------------------
 // Khởi động
 // ---------------------------------------------------------------------------
-function initialSelection() {
+async function initialSelection() {
   const h = decodeURIComponent(location.hash.slice(1));
+  const selectDefault = () => {
+    const loc = state.locations.find((l) => l.id === DEFAULT_LOCATION_ID);
+    if (loc) return selectLocation(loc, { fly: false });
+  };
+  const locateOrDefault = async () => {
+    if (!(await locateMe({ silent: true }))) return selectDefault();
+  };
+
+  if (h === "me") return locateOrDefault();
   const m = h.match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
   if (m) return selectPoint(+m[1], +m[2], { zoom: 8 });
-  const loc =
-    state.locations.find((l) => l.id === h) ||
-    state.locations.find((l) => l.id === DEFAULT_LOCATION_ID);
-  if (loc) return selectLocation(loc, { fly: !!h });
+  const loc = h && state.locations.find((l) => l.id === h);
+  if (loc) return selectLocation(loc, { fly: true });
+
+  // Không có địa điểm trong link → mở tại vị trí thực nếu người dùng đã đồng ý
+  const perm = await permissionState();
+  if (perm !== "denied" && (state.autoLocate === true || (state.autoLocate !== false && perm === "granted"))) {
+    return locateOrDefault();
+  }
+  if (state.autoLocate == null && perm !== "denied") showGeoBanner();
+  return selectDefault();
 }
 
 async function init() {
@@ -401,6 +517,7 @@ async function init() {
   picker = initPicker((x, y) => field.sampleAt(x, y));
   initRadar(map, document.getElementById("radar-badge"));
   initStorms(map);
+  initGeolocate(map);
   if (state.radar) toggleRadar(true);
 
   updateLegend();
@@ -426,7 +543,8 @@ async function init() {
   });
 
   document.getElementById("panel-close").addEventListener("click", closePanel);
-  document.getElementById("btn-locate").addEventListener("click", locateMe);
+  document.getElementById("btn-locate").addEventListener("click", onLocateClick);
+  initGeoBanner();
   document.getElementById("btn-radar").addEventListener("click", () => toggleRadar());
   document
     .getElementById("btn-asia")

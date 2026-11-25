@@ -183,6 +183,12 @@ export function setCustomMarker(lat, lon, name) {
   }).addTo(map);
 }
 
+/** Bỏ ghim vị trí tự chọn (khi chuyển sang xem vị trí GPS — đã có chấm xanh) */
+export function removeCustomMarker() {
+  customMarker?.remove();
+  customMarker = null;
+}
+
 export function updateCustomMarkerName(name) {
   if (customMarker) {
     const b = customMarker.getElement()?.querySelector(".label b");

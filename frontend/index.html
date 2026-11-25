@@ -74,7 +74,7 @@
       <button class="tool-btn" id="btn-settings" title="Cài đặt bản đồ" aria-label="Cài đặt bản đồ" aria-haspopup="true" aria-expanded="false" aria-controls="settings-menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
       </button>
-      <button class="tool-btn" id="btn-locate" title="Vị trí của tôi" aria-label="Vị trí của tôi">
+      <button class="tool-btn" id="btn-locate" title="Dự báo tại vị trí của tôi" aria-label="Dự báo tại vị trí của tôi">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
       </button>
       <button class="tool-btn txt" id="btn-vn" title="Xem toàn Việt Nam" aria-label="Xem toàn Việt Nam">VN</button>
@@ -117,6 +117,7 @@
       <div class="loc-name" id="loc-name">—</div>
       <div class="loc-region" id="loc-region">—</div>
       <div class="loc-meta" id="loc-meta"></div>
+      <div class="gps-badge" id="gps-badge" hidden></div>
 
       <div class="when" id="when">—</div>
       <div class="now-row">
@@ -129,6 +130,7 @@
         </div>
       </div>
 
+      <div class="nowcast" id="nowcast" hidden></div>
       <div id="alerts"></div>
 
       <div class="stat-grid" id="stat-grid"></div>
@@ -168,6 +170,12 @@
     </div>
   </div>
 
+  <div id="geo-banner" hidden role="dialog" aria-label="Dùng vị trí của bạn">
+    <span class="gbn-ic">📍</span>
+    <span class="gbn-text"><b>Xem thời tiết ngay tại chỗ bạn đang đứng?</b><small>Vị trí chỉ dùng để lấy dự báo, không được lưu lại.</small></span>
+    <button data-geo="yes" class="gbn-yes">Dùng vị trí của tôi</button>
+    <button data-geo="no" class="gbn-no">Để sau</button>
+  </div>
   <div id="toast" role="status"></div>
   <div id="hint">Bấm vào bất kỳ đâu trên bản đồ để xem dự báo tại điểm đó</div>
 

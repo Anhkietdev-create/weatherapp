@@ -251,12 +251,23 @@ function transformForecast(raw) {
     sunset: D.sunset[i],
   }));
 
+  // Dự báo ngắn hạn 2 giờ tới theo bước 15 phút (giờ địa phương)
+  const M = raw.minutely_15;
+  const nowcast = M?.time
+    ? M.time.map((time, i) => ({
+        time,
+        rain: round1(M.precipitation?.[i]) ?? 0,
+        code: M.weather_code?.[i] ?? null,
+      }))
+    : [];
+
   return {
     elevation: raw.elevation,
     utcOffset: off,
     timezone: raw.timezone,
     hourly,
     daily,
+    nowcast,
   };
 }
 
@@ -271,6 +282,8 @@ function fetchForecast(lat, lon) {
       daily: DAILY_VARS.join(","),
       forecast_hours: HOURS,
       forecast_days: DAYS,
+      minutely_15: "precipitation,weather_code",
+      forecast_minutely_15: 8,
       timezone: "auto",
       wind_speed_unit: "kmh",
     });
@@ -305,6 +318,7 @@ async function getWeather(location) {
     timezone: forecast.timezone,
     hourly: forecast.hourly,
     daily: forecast.daily,
+    nowcast: forecast.nowcast,
     aqi,
     source: "Open-Meteo",
     updatedAt: new Date().toISOString(),
