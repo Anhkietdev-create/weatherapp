@@ -10,6 +10,8 @@ const badge = document.getElementById("playhead-badge");
 const scale = document.getElementById("timeline-scale");
 const playBtn = document.getElementById("play-btn");
 const playIcon = document.getElementById("play-icon");
+const nowBtn = document.getElementById("now-btn");
+const tlDays = document.getElementById("tl-days");
 
 const ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
 const ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
@@ -20,6 +22,17 @@ const last = () => Math.max(1, state.times.length - 1);
 /** Vẽ vạch chia giờ/ngày từ danh sách mốc giờ thật */
 export function buildTicks() {
   tlTicks.innerHTML = "";
+  // Dải nền xen kẽ theo ngày để dễ nhận ra từng ngày
+  tlDays.innerHTML = "";
+  const starts = [0, ...state.times.map((t, i) => (i && parseLocal(t).h === 0 ? i : -1)).filter((i) => i > 0)];
+  starts.forEach((s, k) => {
+    const e = starts[k + 1] ?? last();
+    const band = document.createElement("div");
+    band.className = "tl-day" + (k % 2 ? " alt" : "");
+    band.style.left = (s / last()) * 100 + "%";
+    band.style.width = ((e - s) / last()) * 100 + "%";
+    tlDays.appendChild(band);
+  });
   // Khoảng cách nhãn giờ theo độ rộng thực của thanh (5 ngày = 120 mốc)
   const pxPerHour = (scale.clientWidth || window.innerWidth - 120) / last();
   const every = [3, 6, 12].find((h) => h * pxPerHour >= 42) || 0; // 0 = chỉ nhãn ngày
@@ -60,6 +73,7 @@ export function updateCurve(temps) {
 }
 
 export function positionPlayhead() {
+  nowBtn.hidden = state.hourIdx === 0;
   playhead.style.left = (state.hourIdx / last()) * 100 + "%";
   const time = state.times[state.hourIdx];
   if (!time) return;
@@ -136,6 +150,11 @@ export function initTimelineInteractions(onScrub) {
     stopPlaying();
     positionPlayhead();
     onScrub();
+  });
+
+  nowBtn.addEventListener("click", () => {
+    stopPlaying();
+    setHour(0);
   });
 
   playBtn.addEventListener("click", () => {

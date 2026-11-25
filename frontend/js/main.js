@@ -274,7 +274,9 @@ async function loadStorms() {
 function toggleRadar(on = !state.radar) {
   state.radar = on;
   saveSettings();
-  document.getElementById("btn-radar").classList.toggle("active", on);
+  const rb = document.getElementById("btn-radar");
+  rb.classList.toggle("active", on);
+  rb.setAttribute("aria-pressed", String(on));
   setRadar(on);
 }
 

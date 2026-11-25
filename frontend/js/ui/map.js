@@ -94,8 +94,9 @@ export function setReferenceHidden(hidden) {
 function fitTo(bounds, animate) {
   const wide = window.innerWidth > 760;
   map.fitBounds(bounds, {
-    paddingTopLeft: [wide ? 80 : 10, 70],
-    paddingBottomRight: [wide ? 380 : 10, wide ? 120 : 260],
+    // chừa chỗ cho: thanh trên + nút nhanh, thanh lớp (trái), panel (phải), timeline (dưới)
+    paddingTopLeft: [wide ? 100 : 10, wide ? 120 : 110],
+    paddingBottomRight: [wide ? 400 : 10, wide ? 110 : 310],
     animate,
   });
 }
@@ -214,13 +215,12 @@ export function updateCustomMarkerName(name) {
 function visibleRect() {
   const size = map.getSize();
   // Khi chọn địa điểm, panel luôn được mở → luôn chừa chỗ cho panel
-  const mobile = window.innerWidth <= 760;
-  const top = 70;
-  if (mobile) {
-    const ph = Math.min(window.innerHeight * 0.52, size.y - 250) + 170;
-    return [10, top, size.x - 10, Math.max(top + 80, size.y - ph)];
+  // Mobile: phần trên (thanh tìm kiếm + nút nhanh) và phần dưới (sheet thu gọn + timeline + thanh lớp)
+  if (window.innerWidth <= 760) {
+    const top = 110, bottom = 158 + 64 + 58 + 34;
+    return [10, top, size.x - 10, Math.max(top + 80, size.y - bottom)];
   }
-  return [90, top, size.x - 380, size.y - 120];
+  return [100, 120, size.x - 400, size.y - 110];
 }
 
 /** Đưa bản đồ tới vị trí (chỉ di chuyển nếu vị trí đang bị che / ngoài màn hình) */

@@ -52,6 +52,8 @@ function render() {
  * @param {(item:{kind,id?,name,sub,lat,lon}) => void} onPick chọn 1 kết quả
  */
 export function initSearch(onPick) {
+  // Màn hình hẹp: gợi ý ngắn hơn để không bị cắt chữ
+  if (window.matchMedia("(max-width: 760px)").matches) input.placeholder = "Tìm phường, xã, tỉnh…";
   async function run(q) {
     controller?.abort();
     controller = new AbortController();

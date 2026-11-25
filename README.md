@@ -22,7 +22,7 @@ so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
   và xem tên; bấm vào bản đồ → dự báo đặt tên theo đúng phường/xã chứa điểm đó (viền vàng).
   Có nhãn Quần đảo Hoàng Sa (Đà Nẵng), Trường Sa (Khánh Hòa), Biển Đông. Khi xem chi tiết trong
   Việt Nam, nhãn nền Esri (vẫn ghi quận/huyện cũ) được ẩn để chỉ còn tên mới. Tìm kiếm được theo
-  tên phường/xã ("hai chau", "phuong ben thanh"). Bật/tắt trong Cài đặt.
+  tên phường/xã ("hai chau", "phuong ben thanh"). Bật/tắt trong Tuỳ chỉnh.
 - **Dự báo tại vị trí thực của bạn** (nút định vị, link `#me`):
   - lấy vị trí GPS/Wi-Fi của thiết bị, hiện chấm xanh + vòng sai số trên bản đồ;
   - tên địa danh thật tới phường/xã (OpenStreetMap Nominatim), ví dụ "Phường Hải Châu · Đà Nẵng";
@@ -63,6 +63,16 @@ so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
   Nút 🔗 sao chép link chia sẻ (`#hanoi`, `#@10.93,108.28`).
 - Chuyển °C/°F (được ghi nhớ).
 - Tự làm mới dữ liệu mỗi 20 phút. Giao diện dùng được trên mobile.
+
+## Giao diện
+
+- **Desktop:** thanh tìm kiếm ở trên; hàng nút **Radar · Bão · Tuỳ chỉnh** có chữ; thanh **Lớp** bên
+  trái; nút **định vị / phóng to / VN / châu Á** bên phải; panel chi tiết có tab **Tổng quan · Theo giờ
+  · 10 ngày · Mô hình**. Đóng panel thì còn thẻ thu gọn (tên + nhiệt độ) để mở lại.
+- **Mobile:** panel là **bottom sheet** — mặc định chỉ lộ tóm tắt (tên, nhiệt độ, thời tiết) để vẫn
+  thấy bản đồ; vuốt lên/chạm tay cầm để xem chi tiết, vuốt xuống để thu gọn/đóng.
+- Timeline tô xen kẽ theo ngày, có nút **Bây giờ** để quay về giờ hiện tại.
+- Phím tắt: `/` tìm kiếm · `←` `→` đổi giờ · `Space` phát · `1`–`9` đổi lớp · `R` radar · `B` bão · `Esc` đóng.
 
 ## Cách chạy
 

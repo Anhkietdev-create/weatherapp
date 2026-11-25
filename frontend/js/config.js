@@ -73,7 +73,7 @@ export const layerMeta = {
   },
   rainacc: {
     label: "Mưa tích luỹ", short: "T.LUỸ", icon: "☔", key: "rain", accum: true, source: "base", unit: "mm", flow: "wind",
-    desc: "Tổng lượng mưa từ bây giờ đến hết khoảng thời gian chọn trong Cài đặt (24 giờ / 3 ngày / 5 ngày)",
+    desc: "Tổng lượng mưa từ bây giờ đến hết khoảng thời gian chọn trong Tuỳ chỉnh (24 giờ / 3 ngày / 5 ngày)",
     stops: [[0, "#1a2740", 0.05], [1, "#1d4f91", 0.4], [5, "#2f7de1"], [15, "#3fc1ff"], [30, "#4fcf6f"], [50, "#e6d74a"], [100, "#ff8b3d"], [200, "#e8384f"], [400, "#b02a8a"]],
   },
   cloud: {

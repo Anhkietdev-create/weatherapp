@@ -14,9 +14,48 @@ import {
 const panel = document.getElementById("panel");
 const $ = (id) => document.getElementById(id);
 
-export function openPanel() { panel.classList.remove("closed"); }
-export function closePanel() { panel.classList.add("closed"); }
-export function isPanelOpen() { return !panel.classList.contains("closed"); }
+// ----------------------------- Trạng thái panel -----------------------------
+// Desktop: "closed" | "full" (mở bên phải).
+// Mobile (bottom sheet): "closed" | "peek" (chỉ lộ tóm tắt) | "full" (kéo lên hết).
+const app = document.getElementById("app");
+const mini = document.getElementById("mini");
+const mobileMQ = window.matchMedia("(max-width: 760px)");
+const isMobile = () => mobileMQ.matches;
+let sheetState = "closed";
+
+export function setSheet(state) {
+  if (!isMobile() && state === "peek") state = "full";
+  sheetState = state;
+  panel.classList.toggle("closed", state === "closed");
+  panel.classList.toggle("peek", state === "peek");
+  panel.style.transform = "";
+  app.classList.toggle("panel-open", state !== "closed");
+  app.classList.toggle("sheet-peek", isMobile() && state === "peek");
+  mini.hidden = state !== "closed" || !state_hasWeather();
+  $("sheet-handle").setAttribute("aria-label", state === "full" ? "Thu gọn chi tiết" : "Kéo lên để xem chi tiết");
+}
+const state_hasWeather = () => !!state.weather;
+
+export function openPanel() { if (sheetState === "closed") setSheet(isMobile() ? "peek" : "full"); }
+export function closePanel() { setSheet("closed"); }
+export function isPanelOpen() { return sheetState !== "closed"; }
+
+// Đổi qua lại desktop ↔ mobile (xoay máy, kéo cửa sổ)
+mobileMQ.addEventListener("change", () => setSheet(sheetState === "closed" ? "closed" : isMobile() ? "peek" : "full"));
+
+/** Thẻ thu gọn (khi đóng panel) + tóm tắt trong sheet mobile */
+function renderMini(weather, h) {
+  $("mini-ic").textContent = h.icon;
+  $("mini-t").textContent = fmtDeg(h.temp);
+  $("mini-name").textContent = weather.location.name;
+  $("mini-cond").textContent = `${h.cond} · gió ${fmtWind(h.wind)}`;
+  $("head-now").innerHTML = `
+    <span class="hn-ic">${h.icon}</span>
+    <span class="hn-t">${fmtDeg(h.temp)}</span>
+    <span class="hn-side"><b>${escapeHtml(h.cond)}</b><span>Cảm giác ${fmtDeg(h.feels)} · gió ${fmtWind(h.wind)}</span></span>
+    <span class="hn-more">Xem thêm ⌃</span>`;
+  if (sheetState === "closed") mini.hidden = false;
+}
 
 /** Báo cho các module khác biết giờ đang xem đã đổi */
 function setHour(i) {
@@ -105,6 +144,7 @@ export function renderPanel(weather) {
   $("now-hilo").innerHTML = `Cao <b>${fmtDeg(day.hi)}</b> · Thấp <b>${fmtDeg(day.lo)}</b>`;
 
   renderGpsBadge(loc);
+  renderMini(weather, h);
   renderNowcast(weather);
   renderAlerts(weather);
 
@@ -471,7 +511,85 @@ function renderModels(data) {
  * Gắn sự kiện một lần: bấm giờ, biểu đồ, ngày, cảnh báo, yêu thích, chia sẻ.
  * @param {{onToast:(msg:string)=>void}} hooks
  */
+/** Tab chuyển nhanh giữa các phần + đánh dấu phần đang xem khi cuộn */
+function initTabs() {
+  const scroller = $("panel-scroll");
+  const tabs = [...panel.querySelectorAll(".panel-tabs [data-sec]")];
+  tabs.forEach((t) => t.addEventListener("click", () => {
+    if (sheetState === "peek") setSheet("full");
+    const sec = $(t.dataset.sec);
+    scroller.scrollTo({ top: sec.offsetTop - scroller.offsetTop - 8, behavior: "smooth" });
+  }));
+  let raf = 0;
+  scroller.addEventListener("scroll", () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const y = scroller.scrollTop + 60;
+      let cur = tabs[0];
+      for (const t of tabs) if ($(t.dataset.sec).offsetTop - scroller.offsetTop <= y) cur = t;
+      // Cuộn tới đáy thì phần cuối là phần đang xem
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) cur = tabs[tabs.length - 1];
+      tabs.forEach((t) => t.classList.toggle("active", t === cur));
+    });
+  });
+}
+
+/**
+ * Kéo bottom sheet (mobile): kéo tay cầm / phần đầu lên-xuống rồi thả để
+ * "hút" về trạng thái gần nhất; chạm nhẹ để chuyển thu gọn ↔ mở rộng.
+ */
+function initSheetDrag() {
+  const head = panel.querySelector(".panel-head");
+  const handle = $("sheet-handle");
+  let start = null;
+  const peekSize = () => parseFloat(getComputedStyle(panel).getPropertyValue("--sheet-peek-size")) || 158;
+  const offsetOf = (st) => (st === "full" ? 0 : st === "peek" ? panel.offsetHeight - peekSize() : panel.offsetHeight);
+
+  function down(e) {
+    if (!isMobile() || e.target.closest("button:not(.sheet-handle), a, .panel-tabs")) return;
+    start = { y: e.clientY, t: performance.now(), base: offsetOf(sheetState), moved: false, id: e.pointerId };
+    panel.classList.add("dragging");
+  }
+  function move(e) {
+    if (!start || e.pointerId !== start.id) return;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dy) > 6) start.moved = true;
+    if (!start.moved) return;
+    if (!panel.hasPointerCapture?.(e.pointerId)) panel.setPointerCapture?.(e.pointerId);
+    const y = Math.max(0, Math.min(panel.offsetHeight, start.base + dy));
+    panel.style.transform = `translateY(${y}px)`;
+  }
+  function up(e) {
+    if (!start || e.pointerId !== start.id) return;
+    panel.classList.remove("dragging");
+    const dy = e.clientY - start.y;
+    const v = dy / Math.max(1, performance.now() - start.t); // px/ms, dương = kéo xuống
+    let next;
+    if (!start.moved) {
+      next = sheetState === "full" ? "peek" : "full"; // chạm nhẹ
+    } else {
+      const y = start.base + dy;
+      const H = panel.offsetHeight, P = H - peekSize();
+      if (v > 0.6) next = sheetState === "full" ? "peek" : "closed";
+      else if (v < -0.6) next = "full";
+      else next = y < P / 2 ? "full" : y < (P + H) / 2 ? "peek" : "closed";
+    }
+    start = null;
+    setSheet(next);
+  }
+  for (const el of [handle, head]) el.addEventListener("pointerdown", down);
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  handle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSheet(sheetState === "full" ? "peek" : "full"); }
+  });
+}
+
 export function initPanelInteractions({ onToast } = {}) {
+  initTabs();
+  initSheetDrag();
+  mini.addEventListener("click", () => setSheet(isMobile() ? "peek" : "full"));
   $("hourly-strip").addEventListener("click", (e) => {
     const b = e.target.closest(".hour-item");
     if (b && state.weather) setHourFromLocal(+b.dataset.i);

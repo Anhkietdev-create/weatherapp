@@ -67,10 +67,16 @@ function syncLayerButtons() {
     b.classList.toggle("active", b.dataset.layer === state.layer));
   const extra = !PRIMARY_LAYERS.includes(state.layer);
   moreBtn.classList.toggle("active", extra);
-  moreBtn.querySelector("span").textContent = extra ? layerMeta[state.layer].short : "THÊM";
+  moreBtn.querySelector("span").textContent = extra ? RAIL_NAMES[state.layer] || layerMeta[state.layer].label : "Thêm";
   layerMenu.querySelectorAll("[data-layer]").forEach((b) =>
     b.classList.toggle("active", b.dataset.layer === state.layer));
 }
+
+/** Tên ngắn hiển thị trên nút "Thêm" khi đang chọn một lớp phụ */
+const RAIL_NAMES = {
+  gust: "Gió giật", feels: "Cảm giác", dew: "Điểm sương", humidity: "Độ ẩm",
+  rainacc: "Tích luỹ", cape: "Dông", waves: "Sóng", pm25: "PM2.5",
+};
 
 /** @param {(layer:string) => void} onChange gọi khi lớp bản đồ đổi */
 export function initLayerRail(onChange) {
@@ -149,7 +155,7 @@ const SETTINGS_SPEC = [
 /** @param {(key:string) => void} onChange gọi sau khi một cài đặt đổi */
 export function initSettings(onChange) {
   settingsMenu.innerHTML =
-    `<div class="pop-title">Cài đặt bản đồ</div>` +
+    `<div class="pop-title">Tuỳ chỉnh bản đồ</div>` +
     SETTINGS_SPEC.map((s) => `
       <div class="set-row">
         <div class="set-label">${s.label}</div>
