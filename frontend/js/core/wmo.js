@@ -1,4 +1,6 @@
-// backend/utils/wmo.js
+// js/core/wmo.js
+// Module DÙNG CHUNG cho trình duyệt (GitHub Pages) và backend Node (npm start).
+// Chuyển từ backend/utils/wmo.js — chỉ dùng fetch/setTimeout nên chạy được ở cả hai môi trường.
 // Chuyển mã thời tiết WMO (Open-Meteo trả về) sang mô tả tiếng Việt + biểu tượng.
 
 const TABLE = {
@@ -38,4 +40,4 @@ function describe(code, isDay = true) {
   return { cond: row[0], icon: isDay ? row[1] : row[2] };
 }
 
-module.exports = { describe };
+export { describe };

@@ -1,14 +1,28 @@
 # Luồng Gió — Bản đồ dự báo thời tiết Việt Nam (lấy cảm hứng từ Windy)
 
+## 🌐 Xem trực tuyến: **https://anhkietdev-create.github.io/weatherapp/**
+
+> Mở link trên bằng trình duyệt (máy tính hoặc điện thoại) là dùng được ngay, không cần cài đặt.
+> Trang được tự động cập nhật mỗi khi có code mới trên nhánh `main`, và dữ liệu bản đồ được làm
+> mới mỗi giờ.
+>
+> Link mở thẳng một nơi: [Hà Nội](https://anhkietdev-create.github.io/weatherapp/#hanoi) ·
+> [Đà Nẵng](https://anhkietdev-create.github.io/weatherapp/#danang) ·
+> [TP. Hồ Chí Minh](https://anhkietdev-create.github.io/weatherapp/#hcm) ·
+> [Vị trí của tôi](https://anhkietdev-create.github.io/weatherapp/#me)
+
 Web dự báo thời tiết **dữ liệu thật** cho toàn bộ Việt Nam trên bản đồ tương tác:
 12 lớp màu (gió, gió giật, nhiệt độ, cảm giác, điểm sương, độ ẩm, mưa, mây,
 dông/CAPE, áp suất, sóng biển, bụi mịn PM2.5), hạt chuyển động theo gió thật,
 đường đẳng áp/đẳng nhiệt, radar mưa trực tiếp, timeline 5 ngày, dự báo 10 ngày,
 so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
 
-- **Backend:** Node.js/Express, lấy dữ liệu từ [Open-Meteo](https://open-meteo.com/)
-  (miễn phí, **không cần API key**), có cache trong bộ nhớ.
 - **Frontend:** HTML/CSS/JS thuần (ES Modules), bản đồ [Leaflet](https://leafletjs.com/).
+- **Dữ liệu:** [Open-Meteo](https://open-meteo.com/) (miễn phí, **không cần API key**) và các nguồn mở khác.
+- **Chạy được 2 cách** với cùng một mã nguồn lấy dữ liệu (`frontend/js/core/`):
+  - **GitHub Pages (trang tĩnh):** trình duyệt gọi thẳng nguồn dữ liệu; GitHub Actions chụp sẵn
+    dữ liệu bản đồ mỗi giờ để trang mở nhanh.
+  - **Node.js/Express (máy nhà):** backend bọc cùng mã đó thành `/api/...`, có cache dùng chung.
 
 ## Tính năng
 
@@ -87,29 +101,46 @@ npm start            # hoặc: npm run dev (nodemon, tự reload)
 Sau đó mở **http://localhost:4000**. Backend phục vụ luôn cả frontend.
 Muốn đổi cổng thì sao chép `.env.example` thành `.env` rồi sửa `PORT`.
 
-Muốn chạy frontend riêng (Live Server, Vite…): đổi `API_BASE` trong
-`frontend/js/config.js` thành `"http://localhost:4000/api"` (backend đã bật CORS).
+Không muốn chạy backend? Mở thư mục `frontend` bằng bất kỳ máy chủ tĩnh nào (Live Server,
+`npx serve frontend`…): trang tự nhận ra không có backend và chuyển sang **chế độ tĩnh** (lấy
+dữ liệu trực tiếp từ trình duyệt). Thêm `?static` vào URL để ép chế độ này.
+
+## Đưa lên GitHub Pages
+
+Đã có sẵn workflow `.github/workflows/pages.yml`:
+
+1. Trên GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions** (làm 1 lần).
+2. Push lên nhánh `main` (hoặc vào tab **Actions → Deploy GitHub Pages → Run workflow**).
+3. Sau 2–4 phút trang có ở **https://anhkietdev-create.github.io/weatherapp/**.
+
+Workflow chạy lại mỗi giờ để chụp dữ liệu bản đồ mới (`backend/scripts/build-live-data.mjs` →
+`data/live/*.json`). Bản chụp cũ quá 3 giờ hoặc bị lỗi thì trang tự lấy dữ liệu trực tiếp.
 
 ## Cây thư mục
 
 ```
 weather-app/
+├── .github/workflows/pages.yml    # Deploy GitHub Pages + chụp dữ liệu mỗi giờ
 ├── backend/
-│   ├── data/locations.js      # 34 tỉnh/thành + các địa điểm khác (toạ độ thật)
-│   ├── routes/weather.js      # Các endpoint /api/...
-│   ├── services/openMeteo.js  # Gọi Open-Meteo, chuẩn hoá dữ liệu, cache
-│   ├── services/storms.js     # Bão từ GDACS: quỹ đạo, dự báo, nón sai số
-│   ├── scripts/build-vn-admin.js  # Dựng dữ liệu 34 tỉnh + 3.321 xã/phường cho frontend
-│   ├── services/reverse.js    # Toạ độ → tên phường/xã (Nominatim, ≤1 request/giây)
-│   ├── utils/wmo.js           # Mã thời tiết WMO → mô tả tiếng Việt + icon
+│   ├── routes/weather.js      # Các endpoint /api/... (bọc frontend/js/core/service.js)
+│   ├── scripts/build-vn-admin.js   # Dựng dữ liệu 34 tỉnh + 3.321 xã/phường cho frontend
+│   ├── scripts/build-live-data.mjs # Chụp dữ liệu bản đồ thành JSON cho bản GitHub Pages
 │   ├── server.js              # Express: API + frontend tĩnh + tải trước dữ liệu
 │   └── package.json
 └── frontend/
     ├── index.html
     ├── css/style.css
+    ├── data/vn/               # Ranh giới & chỉ mục 34 tỉnh, 3.321 xã/phường
     └── js/
+        ├── core/              # Lấy & chuẩn hoá dữ liệu — DÙNG CHUNG cho trình duyệt và Node
+        │   ├── service.js     # Các "endpoint" dạng hàm: tìm kiếm, dự báo, lưới, bão…
+        │   ├── openMeteo.js   # Gọi Open-Meteo (dự báo, sóng, không khí, mô hình), cache
+        │   ├── storms.js      # Bão từ GDACS: quỹ đạo, dự báo, nón sai số
+        │   ├── reverse.js     # Toạ độ → tên phường/xã (Nominatim, ≤1 request/giây)
+        │   ├── locations.js   # 34 tỉnh/thành + các địa điểm khác (toạ độ thật)
+        │   └── wmo.js         # Mã thời tiết WMO → mô tả tiếng Việt + icon
         ├── main.js            # Điểm khởi động, kết nối các module
-        ├── api.js             # Gọi API backend
+        ├── api.js             # Chọn chế độ: backend (/api) hoặc tĩnh (gọi core trực tiếp)
         ├── config.js          # Hằng số: thang màu các lớp, khung bản đồ…
         ├── state.js           # Trạng thái dùng chung
         ├── utils.js           # Định dạng, thời gian, thang màu
@@ -167,6 +198,7 @@ trùng khi bỏ dấu) và in ra các cặp ghép gần đúng để kiểm tra.
 
 ## Lưu ý về tốc độ
 
-Lần đầu khởi động, backend tải trước dữ liệu bản đồ 5 ngày (~500 toạ độ). Khi
+Bản GitHub Pages dùng dữ liệu bản đồ chụp sẵn nên mở gần như ngay lập tức. Khi chạy backend ở
+máy nhà, lần đầu khởi động backend tải trước dữ liệu bản đồ 5 ngày (~500 toạ độ). Khi
 Open-Meteo đông, việc này có thể mất 1–3 phút; sau đó dữ liệu được cache và làm
 mới ngầm. Lần đầu mở lớp Sóng biển / PM2.5 cũng cần chờ tải lưới tương ứng.

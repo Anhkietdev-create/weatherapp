@@ -1,0 +1,50 @@
+# Đưa Luồng Gió lên GitHub Pages (chế độ tĩnh — trình duyệt tự lấy dữ liệu).
+#   • Mỗi lần push lên nhánh main → deploy lại trang.
+#   • Mỗi giờ → chụp lại dữ liệu bản đồ (data/live/*.json) để người xem mở trang nhanh.
+# Link: https://anhkietdev-create.github.io/weatherapp/
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"   # phút 17 mỗi giờ (tránh giờ tròn khi GitHub Actions đông)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Chụp sẵn dữ liệu bản đồ; lỗi cũng không chặn deploy (trang vẫn tự lấy trực tiếp)
+      - name: Chụp dữ liệu bản đồ (overview, lưới, bão)
+        continue-on-error: true
+        timeout-minutes: 20
+        run: node backend/scripts/build-live-data.mjs frontend/data/live
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

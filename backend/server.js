@@ -5,8 +5,6 @@ const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
 const weatherRouter = require("./routes/weather");
-const meteo = require("./services/openMeteo");
-const locations = require("./data/locations");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -44,5 +42,7 @@ app.listen(PORT, () => {
 
   // Tải sẵn dữ liệu bản đồ để người dùng đầu tiên không phải chờ.
   // (Sau đó chỉ làm mới khi có người truy cập, để tiết kiệm hạn mức API.)
-  meteo.warmUp(locations);
+  weatherRouter.servicePromise
+    .then((svc) => svc.warmUp())
+    .catch((err) => console.warn("Tải trước lỗi:", err.message));
 });

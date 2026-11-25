@@ -1,4 +1,6 @@
-// backend/data/locations.js
+// js/core/locations.js
+// Module DÙNG CHUNG cho trình duyệt (GitHub Pages) và backend Node (npm start).
+// Chuyển từ backend/data/locations.js — chỉ dùng fetch/setTimeout nên chạy được ở cả hai môi trường.
 // Danh sách địa điểm hiển thị trên bản đồ: Việt Nam (chi tiết) + châu Á.
 //
 // Việt Nam: major=true → trung tâm hành chính của 34 tỉnh/thành (theo sắp xếp
@@ -243,4 +245,4 @@ const locations = [
   })),
 ];
 
-module.exports = locations;
+export default locations;

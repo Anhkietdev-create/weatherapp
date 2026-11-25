@@ -1,4 +1,6 @@
-// backend/services/storms.js
+// js/core/storms.js
+// Module DÙNG CHUNG cho trình duyệt (GitHub Pages) và backend Node (npm start).
+// Chuyển từ backend/services/storms.js — chỉ dùng fetch/setTimeout nên chạy được ở cả hai môi trường.
 // Bão / áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á — dữ liệu từ GDACS
 // (Global Disaster Alert and Coordination System, EU/UN; nguồn gốc JTWC).
 // Miễn phí, không cần API key. Kết quả được rút gọn thành: quỹ đạo đã qua,
@@ -167,4 +169,4 @@ function getStorms(days = 30) {
   });
 }
 
-module.exports = { getStorms, vnLevel, vnCategory };
+export { getStorms, vnLevel, vnCategory };

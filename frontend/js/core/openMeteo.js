@@ -1,4 +1,6 @@
-// backend/services/openMeteo.js
+// js/core/openMeteo.js
+// Module DÙNG CHUNG cho trình duyệt (GitHub Pages) và backend Node (npm start).
+// Chuyển từ backend/services/openMeteo.js — chỉ dùng fetch/setTimeout nên chạy được ở cả hai môi trường.
 // Lấy dữ liệu thời tiết THẬT từ Open-Meteo (https://open-meteo.com) — miễn phí,
 // không cần API key. Mọi kết quả đều được cache trong bộ nhớ.
 //
@@ -6,7 +8,7 @@
 // request nhiều toạ độ được tính bằng số toạ độ. Vì vậy dữ liệu bản đồ (nhiều
 // điểm) được cache lâu và chỉ làm mới khi có người truy cập (lazy).
 
-const { describe } = require("../utils/wmo");
+import { describe } from "./wmo.js";
 
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality";
@@ -50,10 +52,11 @@ async function cached(key, ttl, loader) {
   }
 }
 
-setInterval(() => {
+const sweep = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of cache) if (v.expires < now) cache.delete(k);
-}, 10 * 60 * 1000).unref();
+}, 10 * 60 * 1000);
+sweep.unref?.(); // Node: không giữ tiến trình sống chỉ vì bộ dọn cache
 
 /**
  * Cache kiểu stale-while-revalidate: có bản cũ thì trả ngay và làm mới ngầm khi
@@ -586,7 +589,7 @@ function geocode(query) {
   });
 }
 
-module.exports = {
+export {
   getWeather, getOverview, getGrids, getExtra, getModels, warmUp, geocode,
   EXTRA_SETS, HOURS, DAYS,
 };

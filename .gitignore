@@ -2,3 +2,4 @@ node_modules/
 .env
 *.log
 backend/data/raw-gis/
+frontend/data/live/

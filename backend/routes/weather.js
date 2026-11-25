@@ -1,234 +1,68 @@
 // backend/routes/weather.js
+// Các endpoint /api/... — chỉ là lớp bọc mỏng quanh frontend/js/core/service.js
+// (cùng một mã nguồn với bản chạy thẳng trên trình duyệt ở GitHub Pages).
+// Chạy qua backend thì có thêm cache dùng chung cho mọi người xem.
+const fs = require("fs");
+const path = require("path");
+const { pathToFileURL } = require("url");
 const express = require("express");
 const router = express.Router();
-const locations = require("../data/locations");
-const meteo = require("../services/openMeteo");
-const stormsSvc = require("../services/storms");
-const reverseSvc = require("../services/reverse");
 
-// Khung bao châu Á (kể cả Indonesia, Đông Timor, Tây Á và vùng Siberia/Viễn Đông)
-const BOUNDS = { minLat: -15, maxLat: 82, minLon: 25, maxLon: 180 };
+const CORE = path.join(__dirname, "..", "..", "frontend", "js", "core", "service.js");
+const WARD_INDEX = path.join(__dirname, "..", "..", "frontend", "data", "vn", "index.json");
 
-/** Bỏ dấu tiếng Việt để tìm kiếm không phân biệt dấu: "da lat" khớp "Đà Lạt" */
-function normalize(s) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/g, "d")
-    .trim();
-}
-
-/**
- * Danh sách 3.321 xã/phường (đơn vị hành chính mới) để tìm kiếm — dựng bởi
- * `npm run build:map`. Thiếu file thì chỉ bỏ qua phần tìm xã/phường.
- */
-const WARD_INDEX = (() => {
-  try {
-    const idx = require("../../frontend/data/vn/index.json");
-    return idx.wards.map(([code, name, pcode, lat, lon]) => ({
-      code, name, province: idx.provinces[pcode], lat, lon, n: normalize(name),
-      base: normalize(name).replace(/^(phuong|xa|dac khu)\s+/, ""),
-      urban: name.startsWith("Phường"),
-    }));
-  } catch {
-    console.warn("Chưa có dữ liệu xã/phường (chạy: npm run build:map) — bỏ qua tìm theo phường.");
-    return [];
-  }
-})();
-
-/** Thứ hạng khi tìm: khớp đầu tên < khớp giữa tên < chỉ khớp tên tỉnh */
-function rank(loc, nq) {
-  const i = normalize(loc.name).indexOf(nq);
-  return i < 0 ? 100 : i;
-}
-
-/** Khoảng cách xấp xỉ (km) giữa 2 toạ độ — dùng tìm địa điểm gần nhất */
-function distanceKm(a, b) {
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLon = toRad(b.lon - a.lon);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
-  return 6371 * 2 * Math.asin(Math.sqrt(h));
-}
-
-function nearestLocation(lat, lon) {
-  let best = null, bestD = Infinity;
-  for (const l of locations) {
-    const d = distanceKm({ lat, lon }, l);
-    if (d < bestD) { bestD = d; best = l; }
-  }
-  return { location: best, km: bestD };
-}
-
-/** Bọc handler async để lỗi được chuyển tới middleware xử lý lỗi */
-const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
-
-/** GET /api/cities — danh sách địa điểm có sẵn */
-router.get("/cities", (req, res) => {
-  res.json(locations);
+/** Module ES dùng chung được nạp bất đồng bộ (CommonJS → import()) */
+const servicePromise = import(pathToFileURL(CORE).href).then((svc) => {
+  svc.setWardIndexLoader(async () => JSON.parse(await fs.promises.readFile(WARD_INDEX, "utf8")));
+  return svc;
 });
 
-/**
- * GET /api/search?q=... — tìm địa điểm: ưu tiên danh sách có sẵn (không phân
- * biệt dấu), sau đó bổ sung kết quả geocoding cho mọi địa danh trong châu Á.
- */
-router.get(["/search", "/cities/search"], wrap(async (req, res) => {
-  const q = (req.query.q || "").toString().trim().slice(0, 80);
-  if (!q) return res.json([]);
-  const nq = normalize(q);
-
-  const local = locations
-    .filter((l) => normalize(l.name).includes(nq) || normalize(l.province).includes(nq) || normalize(l.country).includes(nq))
-    .sort((a, b) => rank(a, nq) - rank(b, nq) || a.tier - b.tier)
-    .slice(0, 8)
-    .map((l) => ({
-      kind: "location", id: l.id, name: l.name, lat: l.lat, lon: l.lon,
-      sub: l.country === "Việt Nam" ? `${l.province} · Việt Nam` : `${l.country} · ${l.region}`,
-    }));
-
-  // Xã/phường/đặc khu theo đơn vị hành chính mới ("hai chau", "phuong hai chau"…)
-  const nqWard = nq.replace(/^(phuong|xa|dac khu)\s+/, "");
-  let wardHits = nqWard.length >= 2 ? WARD_INDEX.filter((w) => w.base.includes(nqWard)) : [];
-  // Gõ kèm loại ("phuong …", "xa …") thì ưu tiên đúng loại; không có thì vẫn trả theo tên
-  // (vd "xa phu quoc" → Đặc khu Phú Quốc)
-  if (nqWard !== nq) {
-    const typed = wardHits.filter((w) => w.n.startsWith(nq.split(" ")[0]));
-    if (typed.length) wardHits = typed;
-  }
-  const wards = wardHits
-    // khớp đầu tên trước, rồi phường (đô thị) trước xã, rồi tên ngắn hơn
-    .sort((a, b) => a.base.indexOf(nqWard) - b.base.indexOf(nqWard) || b.urban - a.urban || a.base.length - b.base.length)
-    .slice(0, 6)
-    .map((w) => ({ kind: "place", name: w.name, sub: w.province, lat: w.lat, lon: w.lon, zoom: 12 }));
-
-  let places = [];
-  if (q.length >= 2) {
-    try {
-      places = (await meteo.geocode(q))
-        // bỏ những kết quả trùng (rất gần) với địa điểm có sẵn
-        .filter((p) => !local.some((l) => distanceKm(l, p) < 3))
-        .map((p) => ({ kind: "place", ...p }));
-    } catch (err) {
-      console.warn("Geocoding lỗi:", err.message);
-    }
-  }
-  // Bỏ kết quả geocoding trùng (rất gần) với xã/phường đã có
-  places = places.filter((p) => !wards.some((w) => distanceKm(w, p) < 2));
-  res.json([...local, ...wards, ...places].slice(0, 14));
-}));
-
-/** GET /api/overview — dữ liệu 48h rút gọn của mọi địa điểm (tô màu bản đồ) */
-router.get("/overview", wrap(async (req, res) => {
-  res.json(await meteo.getOverview(locations));
-}));
-
-/**
- * GET /api/grid?set=base|marine|air — lưới điểm phủ vùng.
- *   base (mặc định): nhiệt, gió, mưa, mây, áp suất, độ ẩm, CAPE…
- *   marine: sóng biển · air: bụi mịn PM2.5 (chỉ tải khi được yêu cầu)
- */
-router.get("/grid", wrap(async (req, res) => {
-  const set = (req.query.set || "base").toString();
-  if (set === "base") return res.json(await meteo.getGrids());
-  if (!meteo.EXTRA_SETS.includes(set)) {
-    return res.status(400).json({ error: "Tham số set không hợp lệ", allowed: ["base", ...meteo.EXTRA_SETS] });
-  }
-  res.json(await meteo.getExtra(set, locations));
-}));
-
-/** Đọc & kiểm tra lat/lon trong query; trả về null (và gửi lỗi 400) nếu sai */
-function parseLatLon(req, res) {
-  const lat = parseFloat(req.query.lat);
-  const lon = parseFloat(req.query.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    res.status(400).json({ error: "Thiếu hoặc sai tham số lat/lon" });
-    return null;
-  }
-  if (lat < BOUNDS.minLat || lat > BOUNDS.maxLat || lon < BOUNDS.minLon || lon > BOUNDS.maxLon) {
-    res.status(400).json({ error: "Vị trí nằm ngoài khu vực châu Á" });
-    return null;
-  }
-  return { lat, lon };
-}
-
-/** GET /api/models?lat=..&lon=.. — so sánh dự báo 7 ngày của ECMWF, GFS, ICON, JMA */
-router.get("/models", wrap(async (req, res) => {
-  const p = parseLatLon(req, res);
-  if (p) res.json(await meteo.getModels(p.lat, p.lon));
-}));
-
-/** GET /api/forecast?lat=..&lon=..&name=.. — dự báo tại toạ độ bất kỳ */
-router.get("/forecast", wrap(async (req, res) => {
-  const p = parseLatLon(req, res);
-  if (!p) return;
-  const { lat, lon } = p;
-
-  // Đặt tên theo địa điểm gần nhất nếu đủ gần, còn lại dùng toạ độ
-  const { location: near, km } = nearestLocation(lat, lon);
-  const customName = (req.query.name || "").toString().trim().slice(0, 80);
-  const coordName = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "B" : "N"}, ${lon.toFixed(2)}°Đ`;
-  const autoName = km < 5 ? near.name : km < 150 ? `Gần ${near.name}` : coordName;
-  const customSub = (req.query.sub || "").toString().trim().slice(0, 120);
-  const location = {
-    id: null,
-    name: customName || autoName,
-    province: customSub || (km < 400 ? near.province : "Vị trí đã chọn"),
-    region: km < 400 ? near.region : "",
-    country: km < 400 ? near.country : "",
-    lat: Math.round(lat * 1e4) / 1e4,
-    lon: Math.round(lon * 1e4) / 1e4,
-    tier: 3,
-  };
-  res.json(await meteo.getWeather(location));
-}));
-
-/** GET /api/reverse?lat=..&lon=.. — tên địa danh tại toạ độ (cho vị trí GPS của người dùng) */
-router.get("/reverse", wrap(async (req, res) => {
-  const p = parseLatLon(req, res);
-  if (!p) return;
+/** Bọc handler: chờ service, đổi ApiError thành mã HTTP tương ứng, lỗi khác → middleware lỗi */
+const wrap = (fn) => async (req, res, next) => {
   try {
-    res.json((await reverseSvc.reverse(p.lat, p.lon)) || { name: null });
+    const svc = await servicePromise;
+    res.json(await fn(svc, req));
   } catch (err) {
-    console.warn("Reverse geocoding lỗi:", err.message);
-    res.json({ name: null }); // không có tên thì frontend dùng tên tự đặt theo địa điểm gần nhất
+    if (err.status) return res.status(err.status).json({ error: err.message, ...err.extra });
+    next(err);
   }
+};
+const q = (req, k) => (req.query[k] ?? "").toString();
+
+/** GET /api/cities — danh sách địa điểm có sẵn */
+router.get("/cities", wrap((svc) => svc.cities()));
+
+/** GET /api/search?q=... — địa điểm có sẵn, xã/phường, địa danh châu Á */
+router.get(["/search", "/cities/search"], wrap((svc, req) => svc.search(q(req, "q"))));
+
+/** GET /api/overview — dữ liệu 5 ngày rút gọn của mọi địa điểm */
+router.get("/overview", wrap((svc) => svc.overview()));
+
+/** GET /api/grid?set=base|marine|air — lưới điểm phủ vùng */
+router.get("/grid", wrap((svc, req) => svc.grid(q(req, "set") || "base")));
+
+/** GET /api/models?lat=..&lon=.. — so sánh ECMWF, GFS, ICON, JMA */
+router.get("/models", wrap((svc, req) => svc.models(q(req, "lat"), q(req, "lon"))));
+
+/** GET /api/forecast?lat=..&lon=..&name=..&sub=.. — dự báo tại toạ độ bất kỳ */
+router.get("/forecast", wrap((svc, req) => svc.forecastAt(q(req, "lat"), q(req, "lon"), q(req, "name"), q(req, "sub"))));
+
+/** GET /api/reverse?lat=..&lon=.. — tên địa danh tại toạ độ */
+router.get("/reverse", wrap((svc, req) => svc.reverse(q(req, "lat"), q(req, "lon"))));
+
+/** GET /api/storms?days=30 — bão/áp thấp nhiệt đới (GDACS) */
+router.get("/storms", wrap((svc, req) => svc.storms(q(req, "days") || 30)));
+
+/** GET /api/weather/:cityId — dự báo đầy đủ (+ /hourly, /daily) */
+router.get("/weather/:cityId", wrap((svc, req) => svc.weather(req.params.cityId)));
+router.get("/weather/:cityId/hourly", wrap(async (svc, req) => {
+  const d = await svc.weather(req.params.cityId);
+  return { location: d.location, hourly: d.hourly };
 }));
-
-/** GET /api/storms?days=30 — bão/áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á (GDACS) */
-router.get("/storms", wrap(async (req, res) => {
-  const days = parseInt(req.query.days, 10) || 30;
-  res.json(await stormsSvc.getStorms(days));
-}));
-
-function findLocation(req, res) {
-  const loc = locations.find((l) => l.id === req.params.cityId);
-  if (!loc) res.status(404).json({ error: "Không tìm thấy địa điểm", cityId: req.params.cityId });
-  return loc;
-}
-
-/** GET /api/weather/:cityId — dự báo đầy đủ (48h theo giờ + 10 ngày + AQI) */
-router.get("/weather/:cityId", wrap(async (req, res) => {
-  const loc = findLocation(req, res);
-  if (loc) res.json(await meteo.getWeather(loc));
-}));
-
-/** GET /api/weather/:cityId/hourly — chỉ dữ liệu theo giờ */
-router.get("/weather/:cityId/hourly", wrap(async (req, res) => {
-  const loc = findLocation(req, res);
-  if (!loc) return;
-  const data = await meteo.getWeather(loc);
-  res.json({ location: data.location, hourly: data.hourly });
-}));
-
-/** GET /api/weather/:cityId/daily — chỉ dữ liệu theo ngày */
-router.get("/weather/:cityId/daily", wrap(async (req, res) => {
-  const loc = findLocation(req, res);
-  if (!loc) return;
-  const data = await meteo.getWeather(loc);
-  res.json({ location: data.location, daily: data.daily });
+router.get("/weather/:cityId/daily", wrap(async (svc, req) => {
+  const d = await svc.weather(req.params.cityId);
+  return { location: d.location, daily: d.daily };
 }));
 
 module.exports = router;
+module.exports.servicePromise = servicePromise;

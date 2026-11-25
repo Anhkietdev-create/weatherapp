@@ -1,4 +1,6 @@
-// backend/services/reverse.js
+// js/core/reverse.js
+// Module DÙNG CHUNG cho trình duyệt (GitHub Pages) và backend Node (npm start).
+// Chuyển từ backend/services/reverse.js — chỉ dùng fetch/setTimeout nên chạy được ở cả hai môi trường.
 // Đổi toạ độ GPS → tên địa danh (đường / phường-xã / tỉnh-thành) bằng
 // Nominatim của OpenStreetMap — miễn phí, không cần API key.
 //
@@ -6,6 +8,9 @@
 // nhận diện ứng dụng, và nên cache kết quả → làm đúng cả 3 ở đây.
 // https://operations.osmfoundation.org/policies/nominatim/
 
+// Trình duyệt không cho tự đặt User-Agent (và header lạ sẽ gây preflight CORS) →
+// chỉ gửi User-Agent khi chạy trên Node; trình duyệt tự gửi Referer để Nominatim nhận diện.
+const IS_NODE = typeof window === "undefined";
 const URL_REVERSE = "https://nominatim.openstreetmap.org/reverse";
 const USER_AGENT = "LuongGio-weather-app/1.0 (+https://open-meteo.com)";
 const TTL = 24 * 60 * 60 * 1000;
@@ -68,7 +73,7 @@ async function reverse(lat, lon) {
       zoom: "16", "accept-language": "vi", addressdetails: "1",
     });
     const res = await fetch(`${URL_REVERSE}?${qs}`, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      headers: IS_NODE ? { "User-Agent": USER_AGENT, Accept: "application/json" } : { Accept: "application/json" },
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) throw new Error(`Nominatim ${res.status}`);
@@ -80,4 +85,4 @@ async function reverse(lat, lon) {
   return value;
 }
 
-module.exports = { reverse };
+export { reverse };
