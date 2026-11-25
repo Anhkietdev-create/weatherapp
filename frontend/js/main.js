@@ -19,11 +19,20 @@ import {
   zoomOut,
   minZoomFor,
   setBasemap,
+  setReferenceHidden,
   initPicker,
 } from "./ui/map.js";
 import { initField } from "./ui/fieldLayer.js";
 import { initRadar, setRadar, refreshRadar } from "./ui/radar.js";
 import { initStorms, setStorms, toggleStorms } from "./ui/storms.js";
+import {
+  initVnAdmin,
+  setVnAdmin,
+  lookupPlace,
+  highlightPlace,
+  placeAtPoint,
+  clearHover,
+} from "./ui/vnAdmin.js";
 import {
   initGeolocate,
   getPosition,
@@ -235,6 +244,10 @@ function onSettingChange(key) {
     case "particles":
       field?.setParticles(state.particles);
       break;
+    case "adminBounds":
+      setVnAdmin(state.adminBounds);
+      if (state.adminBounds && state.active) highlightPlace(state.active.lat, state.active.lon);
+      break;
     case "autoLocate":
       if (state.autoLocate) hideGeoBanner();
       break;
@@ -302,6 +315,7 @@ function selectLocation(loc, { fly = true } = {}) {
   highlightActive(loc.id);
   setHash(loc.id);
   if (fly) focusOn(loc.lat, loc.lon, minZoomFor(loc));
+  highlightPlace(loc.lat, loc.lon);
   return loadWeather(() => api.fetchWeather(loc.id), loc.name);
 }
 
@@ -310,8 +324,19 @@ function selectPoint(lat, lon, { name = "", sub = "", zoom = 0 } = {}) {
   setCustomMarker(lat, lon, name || "Đang tải…");
   setHash(`@${lat.toFixed(4)},${lon.toFixed(4)}`);
   if (zoom) focusOn(lat, lon, zoom);
+  const placeP = highlightPlace(lat, lon);
   return loadWeather(
-    () => api.fetchForecastAt(lat, lon, name, sub),
+    async () => {
+      // Trong Việt Nam: đặt tên theo xã/phường (đơn vị hành chính mới) chứa điểm này
+      const place = name ? null : await placeP;
+      if (place?.ward) {
+        name = place.ward.name;
+        sub = place.province.name;
+        updateCustomMarkerName(name);
+        if (state.active) Object.assign(state.active, { name, sub });
+      }
+      return api.fetchForecastAt(lat, lon, name, sub);
+    },
     name || "vị trí đã chọn",
     {
       after: (w) => updateCustomMarkerName(w.location.name),
@@ -345,11 +370,17 @@ function selectMyLocation(pos, { fly = true, silent = false } = {}) {
   setHash("me");
   if (fly) focusOn(pos.lat, pos.lon, 10);
   return loadWeather(async () => {
-    const [w, place] = await Promise.all([
+    const [w, place, admin] = await Promise.all([
       api.fetchForecastAt(pos.lat, pos.lon),
       api.reverse(pos.lat, pos.lon).catch(() => null),
+      highlightPlace(pos.lat, pos.lon),
     ]);
-    if (place?.name) {
+    if (admin?.ward) {
+      w.location.name = admin.ward.name;
+      const road = place?.road && place.road !== admin.ward.name ? place.road : null;
+      w.location.province = [road, admin.province.name].filter(Boolean).join(" · ");
+      w.location.country = "Việt Nam";
+    } else if (place?.name) {
       w.location.name = place.name;
       const detail = [place.road && place.road !== place.name ? place.road : null, place.province];
       w.location.province = detail.filter(Boolean).join(" · ") || w.location.province;
@@ -514,9 +545,10 @@ async function init() {
   });
   field = initField(map);
   field.setParticles(state.particles);
-  picker = initPicker((x, y) => field.sampleAt(x, y));
+  picker = initPicker((x, y) => field.sampleAt(x, y), placeAtPoint, clearHover);
   initRadar(map, document.getElementById("radar-badge"));
   initStorms(map);
+  initVnAdmin(map, { on: state.adminBounds, onDetailChange: setReferenceHidden });
   initGeolocate(map);
   if (state.radar) toggleRadar(true);
 
@@ -538,7 +570,7 @@ async function init() {
     selectPoint(item.lat, item.lon, {
       name: item.name,
       sub: item.sub,
-      zoom: 9,
+      zoom: item.zoom || 9, // xã/phường → phóng tới mức thấy tên phường
     });
   });
 

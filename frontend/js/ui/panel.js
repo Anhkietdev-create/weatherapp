@@ -82,8 +82,10 @@ export function renderPanel(weather) {
   $("loc-name").textContent = loc.name;
   syncFavButton(weather);
   const isVN = loc.country === "Việt Nam";
+  // Tách các phần đã có sẵn " · " để không lặp (vd "Tỉnh X · Việt Nam" + "Việt Nam")
   $("loc-region").textContent = (isVN ? [loc.province, "Việt Nam"] : [loc.province, loc.region])
-    .filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(" · ");
+    .filter(Boolean).flatMap((v) => String(v).split(" · "))
+    .filter((v, i, arr) => arr.indexOf(v) === i).join(" · ");
   const off = weather.utcOffset ?? VN_OFFSET;
   $("loc-meta").textContent =
     `${Math.abs(loc.lat).toFixed(2)}°${loc.lat >= 0 ? "B" : "N"}, ${loc.lon.toFixed(2)}°Đ` +

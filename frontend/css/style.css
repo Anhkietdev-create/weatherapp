@@ -518,6 +518,22 @@ kbd{
   #geo-banner button{flex:1;}
 }
 
+/* ===== BẢN ĐỒ HÀNH CHÍNH VIỆT NAM ===== */
+.vn-label-anchor{background:none; border:none;}
+.vn-label{
+  position:absolute; transform:translate(-50%,-50%); white-space:nowrap; pointer-events:none;
+  font-family:'Inter',sans-serif; color:#fff; text-align:center; line-height:1.15;
+  text-shadow:0 0 3px #060d17, 0 0 3px #060d17, 0 1px 4px rgba(0,0,0,.9);
+}
+.vn-label.prov{font-size:10.5px; font-weight:600; letter-spacing:1.6px; color:rgba(255,236,200,.92);}
+.vn-label.ward{font-size:11px; font-weight:500; color:rgba(255,255,255,.92);}
+.vn-label.ward.urban{color:#ffe6a8;}
+.vn-label.ward.special{color:#9fe3ff; font-weight:600;}
+.vn-label.sea{font-size:13px; font-style:italic; letter-spacing:3px; color:rgba(159,227,255,.75); font-weight:500;}
+.vn-label.archi{font-size:11.5px; font-weight:600; color:#9fe3ff;}
+.vn-label.archi small{display:block; font-size:9.5px; font-weight:500; color:rgba(159,227,255,.75);}
+#picker .pk-place{font-size:11px; color:#ffe6a8; font-family:'Inter',sans-serif;}
+
 /* ===== BÃO ===== */
 #btn-storms{position:relative;}
 #btn-storms.has-live{color:#ff8b7d;}

@@ -17,6 +17,12 @@ so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
   Các địa điểm phụ hiện khi phóng to bản đồ.
 - **Xem dự báo ở bất kỳ đâu:** bấm thẳng lên bản đồ, hoặc tìm mọi địa danh trong Việt Nam
   (tìm được cả khi gõ không dấu, ví dụ "da lat").
+- **Bản đồ hành chính Việt Nam mới** (từ 01/07/2025): ranh giới + tên **34 tỉnh/thành** và
+  **3.321 xã/phường/đặc khu**. Phóng to (mức ≥ 10) để thấy tên phường/xã; rê chuột để tô sáng
+  và xem tên; bấm vào bản đồ → dự báo đặt tên theo đúng phường/xã chứa điểm đó (viền vàng).
+  Có nhãn Quần đảo Hoàng Sa (Đà Nẵng), Trường Sa (Khánh Hòa), Biển Đông. Khi xem chi tiết trong
+  Việt Nam, nhãn nền Esri (vẫn ghi quận/huyện cũ) được ẩn để chỉ còn tên mới. Tìm kiếm được theo
+  tên phường/xã ("hai chau", "phuong ben thanh"). Bật/tắt trong Cài đặt.
 - **Dự báo tại vị trí thực của bạn** (nút định vị, link `#me`):
   - lấy vị trí GPS/Wi-Fi của thiết bị, hiện chấm xanh + vòng sai số trên bản đồ;
   - tên địa danh thật tới phường/xã (OpenStreetMap Nominatim), ví dụ "Phường Hải Châu · Đà Nẵng";
@@ -83,6 +89,7 @@ weather-app/
 │   ├── routes/weather.js      # Các endpoint /api/...
 │   ├── services/openMeteo.js  # Gọi Open-Meteo, chuẩn hoá dữ liệu, cache
 │   ├── services/storms.js     # Bão từ GDACS: quỹ đạo, dự báo, nón sai số
+│   ├── scripts/build-vn-admin.js  # Dựng dữ liệu 34 tỉnh + 3.321 xã/phường cho frontend
 │   ├── services/reverse.js    # Toạ độ → tên phường/xã (Nominatim, ≤1 request/giây)
 │   ├── utils/wmo.js           # Mã thời tiết WMO → mô tả tiếng Việt + icon
 │   ├── server.js              # Express: API + frontend tĩnh + tải trước dữ liệu
@@ -101,12 +108,26 @@ weather-app/
             ├── fieldLayer.js  # Lớp màu (IDW) + đường đẳng trị + hạt chuyển động + picker
             ├── radar.js       # Radar mưa trực tiếp (RainViewer)
             ├── storms.js      # Lớp bão: quỹ đạo, nón dự báo, danh sách
+            ├── vnAdmin.js     # Ranh giới & tên tỉnh, xã/phường Việt Nam (đơn vị mới)
             ├── geolocate.js   # Vị trí thực: GPS, chấm xanh, theo dõi khi di chuyển
             ├── panel.js       # Panel chi tiết
             ├── timeline.js    # Timeline 5 ngày
             ├── search.js      # Tìm kiếm địa điểm
             └── controls.js    # Đơn vị, chọn lớp, cài đặt, chú giải, thông báo
 ```
+
+## Dữ liệu bản đồ hành chính
+
+Dữ liệu dựng sẵn nằm trong `frontend/data/vn/` (đã đơn giản hoá đường biên, ~10 MB, nén gzip khi
+gửi). Muốn dựng lại (vd khi nguồn cập nhật sau một nghị quyết sắp xếp mới):
+
+```bash
+cd weather-app/backend
+npm run build:map     # tải ~55 MB, mất khoảng 1 phút
+```
+
+Script ghép ranh giới với tên có dấu theo 3 bước (khớp chính xác → gần đúng → hỏi OSM với tên
+trùng khi bỏ dấu) và in ra các cặp ghép gần đúng để kiểm tra.
 
 ## API
 
@@ -128,6 +149,7 @@ weather-app/
 
 - Thời tiết, chất lượng không khí, địa danh: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
 - Sóng biển: Open-Meteo Marine · Bụi mịn: Open-Meteo Air Quality (mô hình CAMS).
+- Ranh giới hành chính: [vietnamese-provinces-database](https://github.com/thanglequoc/vietnamese-provinces-database) (MIT, ranh giới ngày 11/03/2026) · tên & mã: [provinces.open-api.vn](https://provinces.open-api.vn/).
 - Tên địa danh theo vị trí: [OpenStreetMap Nominatim](https://nominatim.org/) (© OpenStreetMap, ODbL).
 - Bão: [GDACS](https://www.gdacs.org/) (dữ liệu JTWC).
 - Radar: [RainViewer](https://www.rainviewer.com/) (chỉ có ở nơi có trạm radar).

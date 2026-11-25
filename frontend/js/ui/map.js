@@ -78,6 +78,17 @@ export function setBasemap(name, labels = true) {
     ? L.tileLayer(b.ref, { pane: "labels", maxNativeZoom: 13, maxZoom: 18, opacity: name === "dark" ? 0.9 : 1 }).addTo(map)
     : null;
   map.getContainer().dataset.basemap = name;
+  if (refHidden) setReferenceHidden(true);
+}
+
+/**
+ * Ẩn/hiện lớp nhãn của nền bản đồ (Esri). Khi đang xem chi tiết xã/phường Việt
+ * Nam thì ẩn đi vì Esri vẫn ghi tên quận/huyện, phường CŨ (trước 01/07/2025).
+ */
+let refHidden = false;
+export function setReferenceHidden(hidden) {
+  refHidden = hidden;
+  if (refLayer) refLayer.setOpacity(hidden ? 0 : map.getContainer().dataset.basemap === "dark" ? 0.9 : 1);
 }
 
 function fitTo(bounds, animate) {
@@ -233,7 +244,7 @@ export function focusOn(lat, lon, minZoom = 0) {
  * (nội suy) cùng hướng/tốc độ gió tại con trỏ. Chỉ bật trên thiết bị có chuột.
  * @param {(x:number, y:number) => ({value,mask,u,v}|null)} sampler
  */
-export function initPicker(sampler) {
+export function initPicker(sampler, describe = null, onLeave = null) {
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
   const el = document.getElementById("picker");
   let last = null, queued = false;
@@ -241,6 +252,7 @@ export function initPicker(sampler) {
   function render() {
     queued = false;
     if (!last) return (el.hidden = true);
+    const place = describe ? describe(last.x, last.y) : null;
     const s = sampler(last.x, last.y);
     if (!s || s.mask < 0.25) return (el.hidden = true);
     const m = layerMeta[state.layer];
@@ -253,7 +265,7 @@ export function initPicker(sampler) {
     }
     const ll = map.containerPointToLatLng(last);
     const coord = `${Math.abs(ll.lat).toFixed(2)}°${ll.lat >= 0 ? "B" : "N"} ${ll.lng.toFixed(2)}°Đ`;
-    el.innerHTML = `<span class="pk-main"><b>${fmtLayer(state.layer, s.value)}</b>${sub}</span><span class="pk-coord">${coord}</span>`;
+    el.innerHTML = `<span class="pk-main"><b>${fmtLayer(state.layer, s.value)}</b>${sub}</span>${place ? `<span class="pk-place">${escapeHtml(place)}</span>` : ""}<span class="pk-coord">${coord}</span>`;
     el.style.transform = `translate(${last.x + 14}px, ${last.y - 34}px)`;
     el.hidden = false;
   }
@@ -262,7 +274,7 @@ export function initPicker(sampler) {
     last = e.containerPoint;
     if (!queued) { queued = true; requestAnimationFrame(render); }
   });
-  map.on("mouseout movestart zoomstart", () => { last = null; el.hidden = true; });
+  map.on("mouseout movestart zoomstart", () => { last = null; el.hidden = true; onLeave?.(); });
   return { refresh: () => last && render() };
 }
 

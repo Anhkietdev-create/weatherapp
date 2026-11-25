@@ -17,7 +17,8 @@ const DEFAULTS = {
   radar: false,       // lớp radar mưa trực tiếp (RainViewer)
   accHours: 24,       // khoảng cộng dồn của lớp mưa tích luỹ: 24 | 72 | 120
   storms: true,       // hiện bão/áp thấp nhiệt đới đang hoạt động
-  autoLocate: null,   // mở trang tại vị trí thực: null = chưa hỏi, true/false = người dùng đã chọn
+  autoLocate: null,
+  adminBounds: true,  // ranh giới + tên tỉnh/thành, xã/phường Việt Nam (từ 01/07/2025)   // mở trang tại vị trí thực: null = chưa hỏi, true/false = người dùng đã chọn
 };
 const SETTING_KEYS = Object.keys(DEFAULTS);
 
@@ -50,6 +51,7 @@ function loadSettings() {
   if (!ACC_PERIODS[s.accHours]) s.accHours = DEFAULTS.accHours;
   s.storms = s.storms !== false;
   if (typeof s.autoLocate !== "boolean") s.autoLocate = null;
+  s.adminBounds = s.adminBounds !== false;
   return s;
 }
 

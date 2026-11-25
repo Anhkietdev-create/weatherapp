@@ -19,6 +19,24 @@ function normalize(s) {
     .trim();
 }
 
+/**
+ * Danh sách 3.321 xã/phường (đơn vị hành chính mới) để tìm kiếm — dựng bởi
+ * `npm run build:map`. Thiếu file thì chỉ bỏ qua phần tìm xã/phường.
+ */
+const WARD_INDEX = (() => {
+  try {
+    const idx = require("../../frontend/data/vn/index.json");
+    return idx.wards.map(([code, name, pcode, lat, lon]) => ({
+      code, name, province: idx.provinces[pcode], lat, lon, n: normalize(name),
+      base: normalize(name).replace(/^(phuong|xa|dac khu)\s+/, ""),
+      urban: name.startsWith("Phường"),
+    }));
+  } catch {
+    console.warn("Chưa có dữ liệu xã/phường (chạy: npm run build:map) — bỏ qua tìm theo phường.");
+    return [];
+  }
+})();
+
 /** Thứ hạng khi tìm: khớp đầu tên < khớp giữa tên < chỉ khớp tên tỉnh */
 function rank(loc, nq) {
   const i = normalize(loc.name).indexOf(nq);
@@ -71,6 +89,21 @@ router.get(["/search", "/cities/search"], wrap(async (req, res) => {
       sub: l.country === "Việt Nam" ? `${l.province} · Việt Nam` : `${l.country} · ${l.region}`,
     }));
 
+  // Xã/phường/đặc khu theo đơn vị hành chính mới ("hai chau", "phuong hai chau"…)
+  const nqWard = nq.replace(/^(phuong|xa|dac khu)\s+/, "");
+  let wardHits = nqWard.length >= 2 ? WARD_INDEX.filter((w) => w.base.includes(nqWard)) : [];
+  // Gõ kèm loại ("phuong …", "xa …") thì ưu tiên đúng loại; không có thì vẫn trả theo tên
+  // (vd "xa phu quoc" → Đặc khu Phú Quốc)
+  if (nqWard !== nq) {
+    const typed = wardHits.filter((w) => w.n.startsWith(nq.split(" ")[0]));
+    if (typed.length) wardHits = typed;
+  }
+  const wards = wardHits
+    // khớp đầu tên trước, rồi phường (đô thị) trước xã, rồi tên ngắn hơn
+    .sort((a, b) => a.base.indexOf(nqWard) - b.base.indexOf(nqWard) || b.urban - a.urban || a.base.length - b.base.length)
+    .slice(0, 6)
+    .map((w) => ({ kind: "place", name: w.name, sub: w.province, lat: w.lat, lon: w.lon, zoom: 12 }));
+
   let places = [];
   if (q.length >= 2) {
     try {
@@ -82,7 +115,9 @@ router.get(["/search", "/cities/search"], wrap(async (req, res) => {
       console.warn("Geocoding lỗi:", err.message);
     }
   }
-  res.json([...local, ...places].slice(0, 12));
+  // Bỏ kết quả geocoding trùng (rất gần) với xã/phường đã có
+  places = places.filter((p) => !wards.some((w) => distanceKm(w, p) < 2));
+  res.json([...local, ...wards, ...places].slice(0, 14));
 }));
 
 /** GET /api/overview — dữ liệu 48h rút gọn của mọi địa điểm (tô màu bản đồ) */

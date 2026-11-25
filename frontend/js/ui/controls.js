@@ -123,6 +123,10 @@ export function initLayerRail(onChange) {
 const SETTINGS_SPEC = [
   { key: "basemap", label: "Nền bản đồ", options: Object.entries(BASEMAPS).map(([v, b]) => [v, b.label]) },
   { key: "labels", label: "Tên địa danh & ranh giới", options: [[true, "Hiện"], [false, "Ẩn"]] },
+  {
+    key: "adminBounds", label: "Ranh giới hành chính Việt Nam", options: [[true, "Hiện"], [false, "Ẩn"]],
+    hint: "34 tỉnh/thành và 3.321 xã/phường theo đơn vị hành chính mới — phóng to để thấy tên phường",
+  },
   { key: "particles", label: "Hạt chuyển động", options: [[true, "Bật"], [false, "Tắt"]] },
   {
     key: "iso", label: "Đường đẳng trị",
