@@ -2,7 +2,7 @@
 // Các điều khiển: đơn vị nhiệt độ, chọn lớp bản đồ (thanh bên + menu "Thêm"),
 // bảng cài đặt bản đồ, chú giải màu, và toast thông báo loading/lỗi.
 import { state, saveSettings } from "../state.js";
-import { layerMeta, PRIMARY_LAYERS, LAYER_GROUPS, BASEMAPS, WIND_UNITS } from "../config.js";
+import { layerMeta, PRIMARY_LAYERS, LAYER_GROUPS, BASEMAPS, WIND_UNITS, ACC_PERIODS } from "../config.js";
 import { gradientCss, fmtLayerNum, layerUnit } from "../utils.js";
 
 const unitToggle = document.getElementById("unit-toggle");
@@ -12,11 +12,14 @@ const layerMenu = document.getElementById("layer-menu");
 const settingsMenu = document.getElementById("settings-menu");
 const moreBtn = document.getElementById("btn-more");
 const settingsBtn = document.getElementById("btn-settings");
+const stormMenu = document.getElementById("storm-menu");
+const stormBtn = document.getElementById("btn-storms");
 
 // ------------------------------ Popover chung ------------------------------
 const popovers = [
   [layerMenu, moreBtn],
   [settingsMenu, settingsBtn],
+  [stormMenu, stormBtn],
 ];
 
 function closePopovers(except) {
@@ -27,7 +30,7 @@ function closePopovers(except) {
   }
 }
 
-function togglePopover(pop, btn) {
+export function togglePopover(pop, btn) {
   const open = pop.hidden;
   closePopovers(pop);
   pop.hidden = !open;
@@ -35,7 +38,7 @@ function togglePopover(pop, btn) {
 }
 
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".popover, #btn-more, #btn-settings")) closePopovers();
+  if (!e.target.closest(".popover, #btn-more, #btn-settings, #btn-storms")) closePopovers();
 });
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePopovers();
@@ -126,6 +129,11 @@ const SETTINGS_SPEC = [
     options: [["auto", "Tự động"], ["pressure", "Đẳng áp"], ["temp", "Đẳng nhiệt"], ["none", "Tắt"]],
     hint: "Tự động: đẳng áp khi xem áp suất, đẳng nhiệt khi xem nhiệt độ",
   },
+  {
+    key: "accHours", label: "Mưa tích luỹ trong",
+    options: Object.entries(ACC_PERIODS).map(([v, l]) => [v, l.replace(" tới", "")]),
+    hint: "Áp dụng cho lớp ☔ Mưa tích luỹ (menu Thêm)",
+  },
   { key: "windUnit", label: "Đơn vị gió", options: Object.entries(WIND_UNITS).map(([v, u]) => [v, u.label]) },
 ];
 
@@ -142,7 +150,7 @@ export function initSettings(onChange) {
         ${s.hint ? `<div class="set-hint">${s.hint}</div>` : ""}
       </div>`).join("") +
     `<div class="set-hint keys">Phím tắt: <kbd>←</kbd><kbd>→</kbd> đổi giờ · <kbd>Space</kbd> phát ·
-      <kbd>1</kbd>–<kbd>9</kbd> đổi lớp · <kbd>/</kbd> tìm kiếm · <kbd>R</kbd> radar</div>`;
+      <kbd>1</kbd>–<kbd>9</kbd> đổi lớp · <kbd>/</kbd> tìm kiếm · <kbd>R</kbd> radar · <kbd>B</kbd> bão</div>`;
 
   const sync = () =>
     settingsMenu.querySelectorAll(".seg").forEach((seg) => {
@@ -156,12 +164,12 @@ export function initSettings(onChange) {
     if (!b) return;
     const key = b.closest(".seg").dataset.key;
     const raw = b.dataset.val;
-    const val = raw === "true" ? true : raw === "false" ? false : raw;
+    const val = raw === "true" ? true : raw === "false" ? false : /^d+$/.test(raw) ? Number(raw) : raw;
     if (state[key] === val) return;
     state[key] = val;
     saveSettings();
     sync();
-    if (key === "windUnit") updateLegend();
+    if (key === "windUnit" || key === "accHours") updateLegend();
     onChange(key);
   });
   sync();
@@ -170,7 +178,8 @@ export function initSettings(onChange) {
 // ------------------------------ Chú giải -----------------------------------
 export function updateLegend() {
   const m = layerMeta[state.layer];
-  document.getElementById("legend-title").textContent = m.label;
+  document.getElementById("legend-title").textContent =
+    m.accum ? `${m.label} · ${ACC_PERIODS[state.accHours]}` : m.label;
   document.getElementById("legend-unit").textContent = layerUnit(state.layer);
   document.getElementById("legend-bar").style.background = gradientCss(m.stops);
   // Thang nhiều mốc thì chỉ ghi số ở mốc cách quãng để khỏi chồng chữ

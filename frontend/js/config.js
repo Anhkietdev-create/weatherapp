@@ -71,6 +71,11 @@ export const layerMeta = {
     desc: "Lượng mưa tích luỹ trong 1 giờ",
     stops: [[0, "#1a2740", 0.05], [0.1, "#1d4f91", 0.45], [1, "#2f7de1"], [3, "#3fc1ff"], [6, "#7b5cff"], [12, "#d14bff"], [25, "#ff4fa3"]],
   },
+  rainacc: {
+    label: "Mưa tích luỹ", short: "T.LUỸ", icon: "☔", key: "rain", accum: true, source: "base", unit: "mm", flow: "wind",
+    desc: "Tổng lượng mưa từ bây giờ đến hết khoảng thời gian chọn trong Cài đặt (24 giờ / 3 ngày / 5 ngày)",
+    stops: [[0, "#1a2740", 0.05], [1, "#1d4f91", 0.4], [5, "#2f7de1"], [15, "#3fc1ff"], [30, "#4fcf6f"], [50, "#e6d74a"], [100, "#ff8b3d"], [200, "#e8384f"], [400, "#b02a8a"]],
+  },
   cloud: {
     label: "Mây", short: "MÂY", icon: "☁️", key: "cloud", source: "base", unit: "%", flow: "wind",
     desc: "Tổng lượng mây che phủ",
@@ -106,7 +111,7 @@ export const PRIMARY_LAYERS = ["wind", "temp", "rain", "cloud", "pressure"];
 export const LAYER_GROUPS = [
   ["Gió", ["wind", "gust"]],
   ["Nhiệt độ & độ ẩm", ["temp", "feels", "dew", "humidity"]],
-  ["Mưa, mây & dông", ["rain", "cloud", "cape"]],
+  ["Mưa, mây & dông", ["rain", "rainacc", "cloud", "cape"]],
   ["Áp suất, biển & không khí", ["pressure", "waves", "pm25"]],
 ];
 
@@ -138,6 +143,20 @@ export const WIND_UNITS = {
   kmh: { label: "km/h", f: 1 },
   ms: { label: "m/s", f: 1 / 3.6 },
   kt: { label: "kt", f: 1 / 1.852 },
+};
+
+/** Khoảng thời gian cộng dồn của lớp "Mưa tích luỹ" (giờ) */
+export const ACC_PERIODS = { 24: "24 giờ tới", 72: "3 ngày tới", 120: "5 ngày tới" };
+
+/**
+ * Màu quỹ đạo bão theo cấp của JTWC/GDACS: TD áp thấp nhiệt đới, TS bão nhiệt đới,
+ * HU/TY bão cuồng phong (typhoon), ST/STY siêu bão.
+ */
+export const STORM_COLORS = {
+  TD: "#6fb1ff", TS: "#4fd58b", STS: "#e6d74a", HU: "#ff8b3d", TY: "#ff8b3d", ST: "#e8384f", STY: "#e8384f",
+};
+export const STORM_CAT_LABEL = {
+  TD: "Áp thấp nhiệt đới", TS: "Bão", STS: "Bão mạnh", HU: "Bão rất mạnh", TY: "Bão rất mạnh", ST: "Siêu bão", STY: "Siêu bão",
 };
 
 /** Màu của từng mô hình trong phần so sánh */

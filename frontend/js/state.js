@@ -1,7 +1,7 @@
 // js/state.js
 // Một object trạng thái đơn giản, dùng chung cho toàn app + lưu cài đặt và
 // địa điểm yêu thích vào localStorage.
-import { layerMeta, BASEMAPS, WIND_UNITS } from "./config.js";
+import { layerMeta, BASEMAPS, WIND_UNITS, ACC_PERIODS } from "./config.js";
 
 const SETTINGS_KEY = "lg-settings";
 const FAV_KEY = "lg-favorites";
@@ -15,6 +15,8 @@ const DEFAULTS = {
   particles: true,    // hạt chuyển động
   iso: "auto",        // đường đẳng trị: auto | pressure | temp | none
   radar: false,       // lớp radar mưa trực tiếp (RainViewer)
+  accHours: 24,       // khoảng cộng dồn của lớp mưa tích luỹ: 24 | 72 | 120
+  storms: true,       // hiện bão/áp thấp nhiệt đới đang hoạt động
 };
 const SETTING_KEYS = Object.keys(DEFAULTS);
 
@@ -44,6 +46,8 @@ function loadSettings() {
   if (!WIND_UNITS[s.windUnit]) s.windUnit = DEFAULTS.windUnit;
   if (!["auto", "pressure", "temp", "none"].includes(s.iso)) s.iso = DEFAULTS.iso;
   if (s.unit !== "F") s.unit = "C";
+  if (!ACC_PERIODS[s.accHours]) s.accHours = DEFAULTS.accHours;
+  s.storms = s.storms !== false;
   return s;
 }
 
@@ -54,6 +58,7 @@ export const state = {
   overviewById: {},    // tra cứu nhanh overview theo id
   grids: [],           // các lưới điểm phủ vùng (GET /api/grid): Việt Nam + châu Á
   extra: {},           // lưới phụ tải khi cần: { marine, air }
+  stormList: [],       // bão đang hoạt động & gần đây (GET /api/storms)
   times: [],           // các mốc giờ (giờ Việt Nam) của timeline
   active: null,        // địa điểm đang xem (có sẵn hoặc toạ độ tự chọn)
   weather: null,       // dự báo chi tiết của địa điểm đang xem

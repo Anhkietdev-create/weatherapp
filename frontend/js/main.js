@@ -3,7 +3,7 @@
 import { state, saveSettings } from "./state.js";
 import * as api from "./api.js";
 import { layerMeta, DEFAULT_LOCATION_ID, REFRESH_MS } from "./config.js";
-import { toUnit, gridIndex } from "./utils.js";
+import { toUnit, gridIndex, sumRange } from "./utils.js";
 import {
   initMap,
   renderPins,
@@ -22,6 +22,7 @@ import {
 } from "./ui/map.js";
 import { initField } from "./ui/fieldLayer.js";
 import { initRadar, setRadar, refreshRadar } from "./ui/radar.js";
+import { initStorms, setStorms, toggleStorms } from "./ui/storms.js";
 import { initSearch } from "./ui/search.js";
 import {
   renderPanel,
@@ -84,18 +85,20 @@ function isoSpec() {
 /**
  * Điểm từ lưới chính (địa điểm + lưới Việt Nam + lưới châu Á) tại giờ đang xem:
  * luôn có vector gió (u, v); thêm `val` nếu lớp lấy từ lưới chính, `iso` nếu
- * đang vẽ đường đẳng trị.
+ * đang vẽ đường đẳng trị. Lớp cộng dồn (mưa tích luỹ) lấy tổng từ giờ đầu
+ * timeline ("bây giờ") trong state.accHours giờ — không phụ thuộc giờ đang xem.
+ * @param {object|null} m layerMeta của lớp (null nếu lớp không lấy từ lưới chính)
  */
-function basePoints(valKey, isoKey) {
+function basePoints(m, isoKey) {
   const time = state.times[state.hourIdx];
   const out = [];
-  const push = (lat, lon, d, j) => {
+  const push = (lat, lon, d, j, j0) => {
     if (j < 0) return;
     const spd = d.wind[j], dir = d.dir[j];
     if (spd == null || dir == null) return;
     const p = { lat, lon, ...toUV(spd, dir) };
-    if (valKey) {
-      const v = d[valKey]?.[j];
+    if (m) {
+      const v = m.accum ? sumRange(d[m.key], j0, state.accHours) : d[m.key]?.[j];
       if (v == null) return;
       p.val = v;
     }
@@ -108,11 +111,12 @@ function basePoints(valKey, isoKey) {
   };
   for (const loc of state.locations) {
     const ov = state.overviewById[loc.id];
-    if (ov) push(loc.lat, loc.lon, ov, state.hourIdx);
+    if (ov) push(loc.lat, loc.lon, ov, state.hourIdx, 0);
   }
   for (const grid of state.grids) {
     const j = gridIndex(grid, time);
-    for (const p of grid.points) push(p.lat, p.lon, p, j);
+    const j0 = gridIndex(grid, state.times[0]);
+    for (const p of grid.points) push(p.lat, p.lon, p, j, j0);
   }
   return out;
 }
@@ -146,7 +150,7 @@ function buildFieldInput() {
   const m = layerMeta[state.layer];
   const iso = isoSpec();
   const fromBase = m.source === "base";
-  const base = basePoints(fromBase ? m.key : null, iso?.key);
+  const base = basePoints(fromBase ? m : null, iso?.key);
   const baseSpec = { pts: base, reach: 550, fade: 400 };
 
   let value, flow;
@@ -224,6 +228,17 @@ function onSettingChange(key) {
       break;
     default:
       refreshMapLayers();
+  }
+}
+
+/** Tải danh sách bão (không báo lỗi lên màn hình — đây là thông tin phụ) */
+async function loadStorms() {
+  try {
+    const { storms } = await api.fetchStorms(30);
+    setStorms(storms);
+    if (state.weather) renderPanel(state.weather); // cập nhật cảnh báo bão gần
+  } catch (err) {
+    console.warn("Không tải được dữ liệu bão:", err.message);
   }
 }
 
@@ -350,6 +365,7 @@ async function periodicRefresh() {
     loadGrid();
     for (const source of Object.keys(state.extra)) ensureExtra(source, { silent: true });
     refreshRadar();
+    loadStorms();
   } catch (err) {
     console.warn("Làm mới thất bại:", err.message);
   }
@@ -384,6 +400,7 @@ async function init() {
   field.setParticles(state.particles);
   picker = initPicker((x, y) => field.sampleAt(x, y));
   initRadar(map, document.getElementById("radar-badge"));
+  initStorms(map);
   if (state.radar) toggleRadar(true);
 
   updateLegend();
@@ -422,7 +439,11 @@ async function init() {
   window.addEventListener("keydown", (e) => {
     if (e.target.closest("input, textarea")) return;
     if (e.key === "Escape") closePanel();
-    if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey) toggleRadar();
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "r" || e.key === "R") toggleRadar();
+    if (e.key === "b" || e.key === "B") {
+      showToast(toggleStorms() ? "Hiện bão đang hoạt động" : "Đã ẩn lớp bão", { duration: 1800 });
+    }
   });
   setTimeout(() => document.getElementById("hint").classList.add("gone"), 9000);
 
@@ -449,6 +470,7 @@ async function init() {
     setTimeout(periodicRefresh, 15000);
   });
   loadGrid(); // không chờ — bản đồ hiện ngay với dữ liệu trạm, lưới bổ sung sau
+  loadStorms();
   await Promise.all([overviewP, initialSelection()]);
   ensureExtra(layerMeta[state.layer].source); // lớp đã lưu từ lần trước có thể cần lưới phụ
 

@@ -68,6 +68,9 @@
       <button class="tool-btn" id="btn-radar" title="Radar mưa trực tiếp (phím R)" aria-label="Radar mưa trực tiếp">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 12l6-6"/><path d="M19.1 7.1A9 9 0 1 1 12 3"/><path d="M15.5 9.2A4.5 4.5 0 1 1 12 7.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
       </button>
+      <button class="tool-btn" id="btn-storms" title="Bão & áp thấp nhiệt đới (phím B)" aria-label="Bão và áp thấp nhiệt đới" aria-haspopup="true" aria-expanded="false" aria-controls="storm-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.5"/><path d="M14.5 12c0-5-3-8-8.5-8 2 1.5 3 3.2 3.3 5.2"/><path d="M9.5 12c0 5 3 8 8.5 8-2-1.5-3-3.2-3.3-5.2"/></svg>
+      </button>
       <button class="tool-btn" id="btn-settings" title="Cài đặt bản đồ" aria-label="Cài đặt bản đồ" aria-haspopup="true" aria-expanded="false" aria-controls="settings-menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
       </button>
@@ -85,6 +88,7 @@
 
   <div class="popover" id="layer-menu" hidden role="menu" aria-label="Chọn lớp bản đồ"></div>
   <div class="popover" id="settings-menu" hidden aria-label="Cài đặt bản đồ"></div>
+  <div class="popover" id="storm-menu" hidden aria-label="Bão và áp thấp nhiệt đới"></div>
 
   <div id="legend">
     <div class="legend-head">

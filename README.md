@@ -17,15 +17,20 @@ so sánh 4 mô hình dự báo (ECMWF, GFS, ICON, JMA).
   Các địa điểm phụ hiện khi phóng to bản đồ.
 - **Xem dự báo ở bất kỳ đâu:** bấm thẳng lên bản đồ, tìm mọi địa danh trong Việt Nam
   (tìm được cả khi gõ không dấu, ví dụ "da lat"), hoặc dùng nút **định vị** (GPS).
-- **12 lớp bản đồ** (5 lớp chính trên thanh bên trái, các lớp còn lại trong menu
+- **13 lớp bản đồ** (5 lớp chính trên thanh bên trái, các lớp còn lại trong menu
   **Thêm**): Gió, Gió giật, Nhiệt độ, Cảm giác như, Điểm sương, Độ ẩm, Mưa, Mây,
-  Dông (CAPE), Áp suất, **Sóng biển** (hạt chạy theo hướng truyền sóng) và
+  Dông (CAPE), Áp suất, **Mưa tích luỹ** (24 giờ / 3 ngày / 5 ngày tới), **Sóng biển** (hạt chạy theo hướng truyền sóng) và
   **Bụi mịn PM2.5**. Lớp sóng & PM2.5 chỉ tải khi được mở để tiết kiệm hạn mức API.
 - Màu được nội suy (IDW) từ các địa điểm + lưới phủ Việt Nam và châu Á; chú giải
   dạng thang phi tuyến có mốc số giống Windy.
 - **Đường đẳng trị**: đẳng áp (isobar) hoặc đẳng nhiệt, có nhãn giá trị
   (chế độ Tự động: đẳng áp khi xem áp suất, đẳng nhiệt khi xem nhiệt độ).
 - **Rê chuột** trên bản đồ để xem giá trị tại con trỏ + hướng/tốc độ gió.
+- **Bão & áp thấp nhiệt đới** (GDACS/JTWC): quỹ đạo tô màu theo cấp, đường dự báo
+  nét đứt, nón sai số, bấm biểu tượng 🌀 xem cấp gió (thang Việt Nam), gió mạnh nhất…
+  Menu liệt kê bão đang hoạt động và trong 30 ngày qua; panel cảnh báo khi bão cách
+  địa điểm đang xem dưới 600 km. Phím `B` bật/tắt.
+- Thước tỉ lệ (km) và toạ độ tại con trỏ.
 - **Radar mưa trực tiếp** (RainViewer, ~1 giờ gần nhất, có hoạt ảnh) — phím `R`.
 - **Cài đặt bản đồ**: nền Tối / Địa hình / Vệ tinh, bật/tắt tên địa danh & ranh giới
   (vẽ đè lên lớp màu), bật/tắt hạt chuyển động, đường đẳng trị, đơn vị gió
@@ -68,6 +73,7 @@ weather-app/
 │   ├── data/locations.js      # 34 tỉnh/thành + các địa điểm khác (toạ độ thật)
 │   ├── routes/weather.js      # Các endpoint /api/...
 │   ├── services/openMeteo.js  # Gọi Open-Meteo, chuẩn hoá dữ liệu, cache
+│   ├── services/storms.js     # Bão từ GDACS: quỹ đạo, dự báo, nón sai số
 │   ├── utils/wmo.js           # Mã thời tiết WMO → mô tả tiếng Việt + icon
 │   ├── server.js              # Express: API + frontend tĩnh + tải trước dữ liệu
 │   └── package.json
@@ -84,6 +90,7 @@ weather-app/
             ├── map.js         # Bản đồ Leaflet + ghim địa điểm
             ├── fieldLayer.js  # Lớp màu (IDW) + đường đẳng trị + hạt chuyển động + picker
             ├── radar.js       # Radar mưa trực tiếp (RainViewer)
+            ├── storms.js      # Lớp bão: quỹ đạo, nón dự báo, danh sách
             ├── panel.js       # Panel chi tiết
             ├── timeline.js    # Timeline 5 ngày
             ├── search.js      # Tìm kiếm địa điểm
@@ -102,12 +109,14 @@ weather-app/
 | GET    | `/api/weather/:id`                    | Dự báo đầy đủ: 5 ngày theo giờ, 10 ngày, AQI                  |
 | GET    | `/api/weather/:id/hourly` · `/daily`  | Chỉ phần theo giờ / theo ngày                                |
 | GET    | `/api/forecast?lat=..&lon=..`         | Dự báo đầy đủ tại một toạ độ bất kỳ trong khu vực châu Á      |
+| GET    | `/api/storms?days=30`                 | Bão/áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á       |
 | GET    | `/api/models?lat=..&lon=..`           | So sánh dự báo 7 ngày của ECMWF, GFS, ICON, JMA              |
 
 ## Nguồn dữ liệu và bản quyền
 
 - Thời tiết, chất lượng không khí, địa danh: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
 - Sóng biển: Open-Meteo Marine · Bụi mịn: Open-Meteo Air Quality (mô hình CAMS).
+- Bão: [GDACS](https://www.gdacs.org/) (dữ liệu JTWC).
 - Radar: [RainViewer](https://www.rainviewer.com/) (chỉ có ở nơi có trạm radar).
 - Nền bản đồ & nhãn: Esri (World Dark Gray, World Terrain, World Imagery).
 

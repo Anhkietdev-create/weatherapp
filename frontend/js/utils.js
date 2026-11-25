@@ -155,6 +155,7 @@ export function fmtLayerNum(layer, v) {
   if (m.kind === "temp") return String(Math.round(toUnit(v)));
   if (m.kind === "wind") return fmtWindNum(v);
   if (layer === "waves") return v.toFixed(1);
+  if (layer === "rainacc") return v < 10 ? String(Math.round(v * 10) / 10) : String(Math.round(v));
   if (layer === "rain") return v < 10 ? String(Math.round(v * 10) / 10) : String(Math.round(v));
   return String(Math.round(v));
 }
@@ -165,6 +166,22 @@ export function fmtLayer(layer, v) {
   const num = fmtLayerNum(layer, v);
   if (m.kind === "temp") return `${num}°${state.unit}`;
   return `${num} ${layerUnit(layer)}`;
+}
+
+/** Tổng n phần tử của mảng bắt đầu từ start (bỏ qua null) — dùng cho mưa tích luỹ */
+export function sumRange(arr, start, n) {
+  if (!arr || start < 0) return null;
+  let s = 0;
+  for (let i = start; i < Math.min(arr.length, start + n); i++) s += arr[i] ?? 0;
+  return Math.round(s * 10) / 10;
+}
+
+/** Khoảng cách (km) giữa hai toạ độ */
+export function distanceKm(lat1, lon1, lat2, lon2) {
+  const r = Math.PI / 180;
+  const h = Math.sin(((lat2 - lat1) * r) / 2) ** 2 +
+    Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
 /** Vị trí của mốc giờ timeline hiện tại trong một lưới (lưới có thể lấy ở giờ khác) */

@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const locations = require("../data/locations");
 const meteo = require("../services/openMeteo");
+const stormsSvc = require("../services/storms");
 
 // Khung bao châu Á (kể cả Indonesia, Đông Timor, Tây Á và vùng Siberia/Viễn Đông)
 const BOUNDS = { minLat: -15, maxLat: 82, minLon: 25, maxLon: 180 };
@@ -146,6 +147,12 @@ router.get("/forecast", wrap(async (req, res) => {
     tier: 3,
   };
   res.json(await meteo.getWeather(location));
+}));
+
+/** GET /api/storms?days=30 — bão/áp thấp nhiệt đới đang hoạt động & gần đây ở châu Á (GDACS) */
+router.get("/storms", wrap(async (req, res) => {
+  const days = parseInt(req.query.days, 10) || 30;
+  res.json(await stormsSvc.getStorms(days));
 }));
 
 function findLocation(req, res) {

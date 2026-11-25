@@ -40,5 +40,8 @@ export function fetchModels(lat, lon) {
   return get(`/models?${qs}`);
 }
 
+/** Bão / áp thấp nhiệt đới đang hoạt động & trong `days` ngày qua ở châu Á */
+export const fetchStorms = (days = 30) => get(`/storms?days=${days}`);
+
 /** Tìm địa điểm/địa danh trong Việt Nam & châu Á */
 export const search = (q, signal) => get(`/search?q=${encodeURIComponent(q)}`, signal);

@@ -5,7 +5,7 @@ import { state } from "../state.js";
 import { VN_BOUNDS, ASIA_BOUNDS, TIER_MIN_ZOOM, BASEMAPS, layerMeta } from "../config.js";
 import {
   fmtDeg, windArrow, escapeHtml, fmtWindNum, fmtLayer, fmtLayerNum, fmtWind,
-  dirFromUV, gridIndex,
+  dirFromUV, gridIndex, sumRange,
 } from "../utils.js";
 
 let map;
@@ -54,6 +54,8 @@ export function initMap(el, onMapClick) {
   refPane.style.pointerEvents = "none";
 
   setBasemap(state.basemap, state.labels);
+  // Thước tỉ lệ (km) góc dưới phải
+  L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(map);
   fitAsia(false);
 
   map.on("click", (e) => onMapClick(e.latlng.lat, e.latlng.lng));
@@ -108,9 +110,10 @@ function labelValue(id) {
   const ov = state.overviewById[id];
   if (!ov) return "";
   const i = Math.min(state.hourIdx, ov.temp.length - 1);
-  const v = ov[m.key]?.[i];
+  const v = m.accum ? sumRange(ov[m.key], 0, state.accHours) : ov[m.key]?.[i];
   if (v == null) return "";
   switch (state.layer) {
+    case "rainacc": return v > 0 ? `${fmtLayerNum("rainacc", v)} mm` : "0";
     case "temp": return `${ov.icon[i]} ${fmtDeg(v)}`;
     case "feels": case "dew": return fmtDeg(v);
     case "wind": case "gust": return `${windArrow(ov.dir[i], 11)} ${fmtWindNum(v)}`;
@@ -242,7 +245,9 @@ export function initPicker(sampler) {
     } else if (state.layer === "wind" || state.layer === "waves") {
       if (s.u != null) sub = `<span class="pk-sub">${windArrow(dirFromUV(s.u, s.v), 11)}</span>`;
     }
-    el.innerHTML = `<b>${fmtLayer(state.layer, s.value)}</b>${sub}`;
+    const ll = map.containerPointToLatLng(last);
+    const coord = `${Math.abs(ll.lat).toFixed(2)}°${ll.lat >= 0 ? "B" : "N"} ${ll.lng.toFixed(2)}°Đ`;
+    el.innerHTML = `<span class="pk-main"><b>${fmtLayer(state.layer, s.value)}</b>${sub}</span><span class="pk-coord">${coord}</span>`;
     el.style.transform = `translate(${last.x + 14}px, ${last.y - 34}px)`;
     el.hidden = false;
   }

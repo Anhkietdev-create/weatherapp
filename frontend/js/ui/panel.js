@@ -8,7 +8,7 @@ import * as api from "../api.js";
 import {
   fmtDeg, fmtTemp, toUnit, fmtHour, fmtClock, fmtDate, fmtDow, parseLocal,
   windDirName, windArrow, beaufort, aqiInfo, uvInfo, escapeHtml,
-  fmtWind, fmtWindNum, windUnitLabel,
+  fmtWind, fmtWindNum, windUnitLabel, distanceKm,
 } from "../utils.js";
 
 const panel = document.getElementById("panel");
@@ -216,6 +216,18 @@ function renderAlerts(weather) {
     if (d.gustMax >= 89) add("wind", 3, "🌀", "Gió giật rất mạnh (cấp 10+)", d, fmtWind(d.gustMax));
     else if (d.gustMax >= 62) add("wind", 2, "💨", "Gió giật mạnh (cấp 8+)", d, fmtWind(d.gustMax));
     if (d.code >= 95) add("storm", 2, "⛈", "Dông, có thể kèm lốc, sét", d, "");
+  }
+  // Bão / áp thấp đang hoạt động có vị trí hoặc quỹ đạo dự báo trong 600 km
+  const loc = weather.location;
+  for (const s of state.stormList.filter((x) => x.current)) {
+    const pts = [s.position, ...s.points.filter((p) => p.forecast).map((p) => [p.lat, p.lon])];
+    const km = Math.min(...pts.map(([la, lo]) => distanceKm(loc.lat, loc.lon, la, lo)));
+    if (km <= 600) {
+      found.push({
+        type: "storm-" + s.id, level: km <= 250 ? 3 : 2, icon: "🌀",
+        text: `${s.category} ${s.name}`, date: days[0].date, value: `cách ~${Math.round(km / 10) * 10} km`,
+      });
+    }
   }
   if (weather.aqi?.usAqi > 150) {
     found.push({ type: "aqi", level: 2, icon: "😷", text: "Không khí xấu", date: days[0].date, value: `AQI ${weather.aqi.usAqi}` });
